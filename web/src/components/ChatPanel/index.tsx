@@ -50,7 +50,7 @@ export function ChatPanel({
   ];
 
   return (
-    <div className="chat-panel">
+    <div className="chat-panel" role="region" aria-label="Chat">
       <div className="chat-header">
         <h2>Santa Fe Spatial Chat</h2>
         <p className="chat-subtitle">
@@ -58,7 +58,12 @@ export function ChatPanel({
         </p>
       </div>
 
-      <div className="chat-messages">
+      <div
+        className="chat-messages"
+        role="log"
+        aria-live="polite"
+        aria-label="Conversation history"
+      >
         {messages.length === 0 && (
           <div className="chat-welcome">
             <p>
@@ -82,11 +87,15 @@ export function ChatPanel({
         )}
 
         {messages.map((message) => (
-          <div key={message.id} className={`chat-message ${message.role}`}>
+          <div
+            key={message.id}
+            className={`chat-message ${message.role}`}
+            role={message.role === 'assistant' ? 'status' : undefined}
+          >
             <div className="message-content">
               {message.content}
               {message.error && (
-                <div className="message-error">{message.error}</div>
+                <div className="message-error" role="alert">{message.error}</div>
               )}
               {message.metadata && (
                 <div className="message-meta">
@@ -99,13 +108,14 @@ export function ChatPanel({
         ))}
 
         {isLoading && (
-          <div className="chat-message assistant">
+          <div className="chat-message assistant" role="status" aria-label="Loading response">
             <div className="message-content loading">
-              <span className="loading-dots">
+              <span className="loading-dots" aria-hidden="true">
                 <span>.</span>
                 <span>.</span>
                 <span>.</span>
               </span>
+              <span className="sr-only">Processing your query...</span>
             </div>
           </div>
         )}
@@ -114,7 +124,11 @@ export function ChatPanel({
       </div>
 
       <form className="chat-input-form" onSubmit={handleSubmit}>
+        <label htmlFor="chat-input" className="sr-only">
+          Ask a question about Santa Fe
+        </label>
         <textarea
+          id="chat-input"
           ref={inputRef}
           className="chat-input"
           value={inputValue}
@@ -123,7 +137,13 @@ export function ChatPanel({
           placeholder="Ask a question about Santa Fe..."
           disabled={isLoading}
           rows={2}
+          aria-describedby={isLoading ? 'chat-loading-hint' : undefined}
         />
+        {isLoading && (
+          <span id="chat-loading-hint" className="sr-only">
+            Please wait, processing your query
+          </span>
+        )}
         <button
           type="submit"
           className="chat-submit-btn"

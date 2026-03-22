@@ -114,7 +114,7 @@ export function ResultsPanel({
   const hasMoreColumns = propertyKeys.length > 5;
 
   return (
-    <div className="results-panel">
+    <div className="results-panel" role="region" aria-label="Query results">
       <div className="results-header">
         <div className="results-title">
           <h3>Results</h3>
@@ -232,30 +232,42 @@ export function ResultsPanel({
 
       {features.length > 0 && (
         <div className="results-table-container">
-          <table className="results-table">
+          <table className="results-table" aria-label="Feature results">
             <thead>
               <tr>
                 {displayKeys.map((key) => (
-                  <th key={key}>{formatKey(key)}</th>
+                  <th key={key} scope="col">{formatKey(key)}</th>
                 ))}
-                {hasMoreColumns && <th>...</th>}
+                {hasMoreColumns && <th scope="col">...</th>}
               </tr>
             </thead>
             <tbody>
-              {features.slice(0, 100).map((feature, index) => (
-                <tr
-                  key={index}
-                  className={featuresEqual(selectedFeature, feature) ? 'selected' : ''}
-                  onClick={() => onFeatureSelect(feature)}
-                >
-                  {displayKeys.map((key) => (
-                    <td key={key}>
-                      {formatValue(feature.properties?.[key])}
-                    </td>
-                  ))}
-                  {hasMoreColumns && <td>...</td>}
-                </tr>
-              ))}
+              {features.slice(0, 100).map((feature, index) => {
+                const isSelected = featuresEqual(selectedFeature, feature);
+                return (
+                  <tr
+                    key={index}
+                    className={isSelected ? 'selected' : ''}
+                    onClick={() => onFeatureSelect(feature)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onFeatureSelect(feature);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="row"
+                    aria-selected={isSelected}
+                  >
+                    {displayKeys.map((key) => (
+                      <td key={key}>
+                        {formatValue(feature.properties?.[key])}
+                      </td>
+                    ))}
+                    {hasMoreColumns && <td>...</td>}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {features.length > 100 && (

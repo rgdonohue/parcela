@@ -284,6 +284,11 @@
   background: var(--row-hover-bg, rgba(99, 102, 241, 0.1));
 }
 
+.results-table tbody tr:focus-visible {
+  outline: 2px solid var(--accent-color, #6366f1);
+  outline-offset: -2px;
+}
+
 .results-table tbody tr.selected {
   background: var(--row-selected-bg, rgba(245, 158, 11, 0.2));
 }
