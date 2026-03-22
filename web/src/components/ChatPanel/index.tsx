@@ -44,9 +44,9 @@ export function ChatPanel({
   };
 
   const exampleQueries = [
-    'Show all zoning districts',
-    'Show all census tracts',
-    'Show the hydrology network',
+    'Which neighborhoods have the most short-term rentals?',
+    'Show residential parcels within 300m of a bus stop',
+    'Census tracts where median income is below 40000',
   ];
 
   return (

@@ -12,7 +12,16 @@ import type {
   StructuredQuery,
 } from '../types/api';
 
-const API_BASE = 'http://localhost:3000';
+/**
+ * API base URL — reads from VITE_API_BASE env var at build time.
+ * Falls back to '/api' for same-origin production deployments,
+ * or 'http://localhost:3000' for local development when no env var is set.
+ */
+const API_BASE: string =
+  import.meta.env.VITE_API_BASE ??
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : '');
 
 /**
  * Custom error class for API errors
@@ -99,13 +108,27 @@ async function apiFetch<T>(
 }
 
 /**
- * Send a natural language chat message
+ * Conversation context for multi-turn refinement.
+ */
+export interface ConversationContext {
+  previousQuery: StructuredQuery;
+  previousLayer: string;
+  previousResultCount: number;
+  previousExplanation: string;
+}
+
+/**
+ * Send a natural language chat message, optionally with conversation context
+ * for multi-turn refinement ("filter those to...", "now show just...").
  */
 export async function sendChatMessage(
   message: string,
-  conversationId?: string
+  context?: ConversationContext
 ): Promise<ChatResponse> {
-  const request: ChatRequest = { message, conversationId };
+  const request: ChatRequest & { context?: ConversationContext } = {
+    message,
+    context,
+  };
 
   return apiFetch<ChatResponse>('/api/chat', {
     method: 'POST',

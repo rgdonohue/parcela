@@ -20,6 +20,18 @@ export interface ParseResult {
 }
 
 /**
+ * Conversation context from a previous turn.
+ * Allows the parser to resolve references like "those", "filter further",
+ * "now show just the Southside", etc.
+ */
+export interface ConversationContext {
+  previousQuery: StructuredQuery;
+  previousLayer: string;
+  previousResultCount: number;
+  previousExplanation: string;
+}
+
+/**
  * Intent parser that converts NL → StructuredQuery
  */
 export class IntentParser {
@@ -60,11 +72,15 @@ export class IntentParser {
    * Parse a natural language query into a StructuredQuery
    *
    * @param userQuery - The user's natural language query
+   * @param context - Optional conversation context from previous turn
    * @returns ParseResult with query and confidence score
    * @throws Error if parsing fails completely
    */
-  async parse(userQuery: string): Promise<ParseResult> {
-    const prompt = this.buildPrompt(userQuery);
+  async parse(
+    userQuery: string,
+    context?: ConversationContext | null
+  ): Promise<ParseResult> {
+    const prompt = this.buildPrompt(userQuery, context ?? null);
     const rawResponse = await this.llm.complete(prompt);
 
     // Extract JSON from response
@@ -100,9 +116,12 @@ export class IntentParser {
   }
 
   /**
-   * Build the prompt with layer schemas and examples
+   * Build the prompt with layer schemas, examples, and optional conversation context
    */
-  private buildPrompt(userQuery: string): string {
+  private buildPrompt(
+    userQuery: string,
+    context: ConversationContext | null
+  ): string {
     // Filter to only available layers (if set), otherwise show all
     const layersToShow = this.availableLayers.size > 0
       ? Object.values(LAYER_SCHEMAS).filter((s) => this.availableLayers.has(s.name))
@@ -124,6 +143,19 @@ export class IntentParser {
 
     // Build examples that use available layers
     const examples = this.buildExamples();
+
+    // Build conversation context section if available
+    const contextSection = context
+      ? `
+Conversation context (previous query):
+- Layer: ${context.previousLayer}
+- Result: ${context.previousResultCount} features
+- Explanation: "${context.previousExplanation}"
+- Previous query: ${JSON.stringify(context.previousQuery)}
+
+If the user's new query refers to the previous results (e.g. "filter those", "now just show...", "of those which...", "narrow that down"), build on the previous query by adding or modifying filters. Keep the same selectLayer unless the user explicitly asks for a different layer.
+`
+      : '';
 
     return `You are a spatial query parser for Santa Fe, New Mexico. Convert natural language queries into structured JSON queries.
 
@@ -156,7 +188,7 @@ Output ONLY valid JSON matching this schema:
 
 Examples:
 ${examples}
-
+${contextSection}
 Now parse this query:
 User: "${userQuery}"
 
