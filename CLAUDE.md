@@ -25,25 +25,38 @@ npm run typecheck    # TypeScript check
 npm run lint         # ESLint
 ```
 
+### Docker
+```bash
+docker build -t santa-fe-spatial-chat .
+docker run -p 3000:3000 -v ./api/data:/app/api/data santa-fe-spatial-chat
+```
+
+### CI
+GitHub Actions runs lint → typecheck → test (API), lint → typecheck → build (web), then Docker build. See `.github/workflows/ci.yml`.
+
 ### Prerequisites
 - Node.js 20+
 - Ollama running locally with a model pulled (`ollama pull qwen2.5:7b` or `ollama pull llama3.1:8b`)
+- Or set `TOGETHER_API_KEY` for production LLM (see `api/.env.example`)
 
 ## Architecture
 
 ### Query Flow
-1. User submits natural language query via `/api/chat`
+1. User submits natural language query via `/api/chat` (optionally with conversation context)
 2. LLM parses query into `StructuredQuery` (constrained query schema, not arbitrary SQL)
 3. Zod validates the parsed query
 4. Query builder generates parameterized DuckDB SQL
 5. Results returned as GeoJSON + LLM generates explanation
+6. Conversation context (previous query + result summary) stored for multi-turn refinement
 
 ### Key Directories
 - `api/src/lib/orchestrator/` - NL parsing, validation, SQL building
-- `api/src/lib/llm/` - Ollama client abstraction (swappable for Together.ai/Groq in prod)
-- `api/src/lib/db/` - DuckDB initialization with spatial extension
+- `api/src/lib/llm/` - LLM provider abstraction (Ollama for dev, Together.ai for prod)
+- `api/src/lib/db/` - DuckDB initialization with spatial extension + R-tree indexes
+- `api/src/lib/utils/` - Shared utilities: query executor pipeline, explanation generation, GeoJSON helpers
 - `api/src/lib/templates/` - Pre-built equity analysis query templates
 - `shared/types/` - TypeScript types shared between api/web (`query.ts`, `geo.ts`)
+- `web/src/store/` - Zustand store for chat state, query results, and multi-turn context
 - `web/src/components/MapView/` - MapLibre GL integration
 
 ### CRS Convention
@@ -53,6 +66,9 @@ npm run lint         # ESLint
 ### StructuredQuery Schema
 Supports: attribute filters (`eq`, `in`, `like`, `gt`, etc.), spatial filters (`within_distance`, `intersects`, `contains`, `nearest`), aggregations, and temporal comparisons. See `shared/types/query.ts` for full schema.
 
+### VARCHAR Numeric Fields
+Some DuckDB columns are VARCHAR but represent numbers (e.g., `year_built`, `price_per_night`, `accommodates`, `trail_miles`). The query builder auto-wraps these in `TRY_CAST(... AS DOUBLE)` for numeric comparisons. The field map is `VARCHAR_NUMERIC_FIELDS` in `builder.ts`.
+
 ## Coding Conventions
 
 - TypeScript with `strict`, `noUncheckedIndexedAccess`, `noImplicitReturns`
@@ -60,6 +76,8 @@ Supports: attribute filters (`eq`, `in`, `like`, `gt`, etc.), spatial filters (`
 - kebab-case for files, PascalCase for components/types, camelCase for variables
 - No `any` (errors), unused vars warn
 - Parameterized queries only - no string interpolation for SQL
+- LLM provider selected by env vars: `TOGETHER_API_KEY` → Together.ai, else Ollama
+- Environment config via `.env` files (see `api/.env.example`, `web/.env.example`)
 
 ## API Endpoints
 - `POST /api/chat` - Natural language query → results + explanation
