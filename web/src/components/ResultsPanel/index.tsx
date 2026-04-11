@@ -14,6 +14,7 @@ interface ResultsPanelProps {
   metadata: QueryMetadata | null;
   grounding: GroundingInfo | null;
   explanation: string | null;
+  equityNarrative?: string | null;
   onFeatureSelect: (feature: Feature<Geometry, Record<string, unknown>> | null) => void;
   onClose: () => void;
 }
@@ -83,6 +84,7 @@ export function ResultsPanel({
   metadata,
   grounding,
   explanation,
+  equityNarrative,
   onFeatureSelect,
   onClose,
 }: ResultsPanelProps) {
@@ -156,6 +158,9 @@ export function ResultsPanel({
 
       {explanation && (
         <div className="results-explanation">
+          {equityNarrative && (
+            <span className="equity-label">Housing equity analysis</span>
+          )}
           <p>{explanation}</p>
         </div>
       )}

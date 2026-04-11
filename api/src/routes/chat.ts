@@ -5,6 +5,7 @@
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { createLLMClient } from '../lib/llm';
 import { IntentParser } from '../lib/orchestrator/parser';
 import {
@@ -24,6 +25,19 @@ import {
 } from '../lib/orchestrator/intent-router';
 import { prepareQuery, executeQuery } from '../lib/utils/query-executor';
 import { generateExplanation, generateEquityExplanation } from '../lib/utils/explanation';
+
+// ── Request validation schema ─────────────────────────────────────────────────
+const chatBodySchema = z.object({
+  message: z.string().min(1, 'message must be a non-empty string'),
+  context: z
+    .object({
+      previousQuery: z.record(z.string(), z.unknown()),
+      previousLayer: z.string(),
+      previousResultCount: z.number(),
+      previousExplanation: z.string(),
+    })
+    .optional(),
+});
 
 let dbInstance: Database | null = null;
 let layerRegistry: LayerRegistry | null = null;
@@ -115,15 +129,22 @@ chatRoute.post('/', async (c) => {
   }
 
   try {
-    const body = (await c.req.json()) as {
-      message: string;
-      context?: ConversationContext;
-    };
-    if (!body.message || typeof body.message !== 'string') {
-      return c.json({ error: 'Missing or invalid message field' }, 400);
+    const rawBody: unknown = await c.req.json();
+    const bodyValidation = chatBodySchema.safeParse(rawBody);
+    if (!bodyValidation.success) {
+      return c.json(
+        {
+          error: 'Invalid request body',
+          details: bodyValidation.error.issues.map((i) => i.message).join('; '),
+        },
+        400
+      );
     }
+    const body = bodyValidation.data;
 
-    const conversationContext = body.context ?? null;
+    const conversationContext: ConversationContext | null = body.context
+      ? (body.context as unknown as ConversationContext)
+      : null;
     const availableLayers = layerRegistry.loadedLayerNames;
     const grounding = assessGroundingRequest(body.message, availableLayers);
     if (grounding.disambiguationPrompt) {

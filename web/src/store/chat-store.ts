@@ -39,6 +39,7 @@ interface ChatState {
   queryMetadata: QueryMetadata | null;
   grounding: GroundingInfo | null;
   explanation: string | null;
+  equityNarrative: string | null;
 
   // ── UI ──
   selectedFeature: Feature<Geometry, Record<string, unknown>> | null;
@@ -64,6 +65,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   queryMetadata: null,
   grounding: null,
   explanation: null,
+  equityNarrative: null,
   selectedFeature: null,
   showResults: false,
   conversationContext: null,
@@ -100,6 +102,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         result: response.result,
         metadata: response.metadata,
         grounding: response.grounding,
+        equityNarrative: response.equityNarrative ?? null,
       };
 
       set({
@@ -109,6 +112,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         queryMetadata: response.metadata,
         grounding: response.grounding,
         explanation: response.explanation,
+        equityNarrative: response.equityNarrative ?? null,
         showResults: true,
         selectedFeature: null,
         isLoading: false,
@@ -173,6 +177,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       queryMetadata: null,
       grounding: null,
       explanation: null,
+      equityNarrative: null,
       selectedFeature: null,
       showResults: false,
       conversationContext: null,

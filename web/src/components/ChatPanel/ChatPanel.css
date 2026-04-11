@@ -104,6 +104,17 @@
   border-bottom-left-radius: 4px;
 }
 
+.chat-equity-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-color, #6366f1);
+  margin-bottom: 0.3rem;
+  opacity: 0.85;
+}
+
 .message-error {
   margin-top: 0.5rem;
   padding: 0.5rem;

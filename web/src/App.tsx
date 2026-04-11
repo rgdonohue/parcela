@@ -16,6 +16,7 @@ function App() {
     queryMetadata,
     grounding,
     explanation,
+    equityNarrative,
     showResults,
     sendMessage,
     selectFeature,
@@ -55,6 +56,7 @@ function App() {
             metadata={queryMetadata}
             grounding={grounding}
             explanation={explanation}
+            equityNarrative={equityNarrative}
             onFeatureSelect={selectFeature}
             onClose={closeResults}
           />

@@ -32,6 +32,7 @@ export interface ChatMessage {
   result?: QueryResult;
   metadata?: QueryMetadata;
   grounding?: GroundingInfo;
+  equityNarrative?: string | null;
   error?: string;
 }
 
@@ -67,6 +68,7 @@ export interface ChatResponse {
   query: StructuredQuery;
   result: QueryResult;
   explanation: string;
+  equityNarrative?: string | null;
   confidence: number;
   grounding: GroundingInfo;
   metadata: QueryMetadata;

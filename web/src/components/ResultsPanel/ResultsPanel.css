@@ -80,6 +80,17 @@
   border-bottom: 1px solid var(--border-color, #2a2a4a);
 }
 
+.equity-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-color, #6366f1);
+  margin-bottom: 0.4rem;
+  opacity: 0.85;
+}
+
 .results-explanation p {
   margin: 0;
   font-size: 0.9rem;

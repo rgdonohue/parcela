@@ -93,6 +93,9 @@ export function ChatPanel({
             role={message.role === 'assistant' ? 'status' : undefined}
           >
             <div className="message-content">
+              {message.role === 'assistant' && message.equityNarrative && (
+                <span className="chat-equity-label">Housing equity analysis</span>
+              )}
               {message.content}
               {message.error && (
                 <div className="message-error" role="alert">{message.error}</div>
