@@ -203,27 +203,20 @@ Fields mapped:
 
   affordable_housing: {
     name: 'Affordable Housing Units',
-    description: 'Deed-restricted and subsidized housing inventory',
-    url: 'N/A',
-    format: 'csv',
-    automated: false,
+    description: 'LIHTC projects in Santa Fe County (HUD database)',
+    url: 'https://www.huduser.gov/lihtc/lihtcpub.zip',
+    format: 'geojson',
+    automated: true,
     instructions: `
-MANUAL ACQUISITION REQUIRED:
+To fetch:
+  tsx scripts/fetch-affordable-housing-lihtc.ts
 
-1. City of Santa Fe Housing Division:
-   - Contact: https://santafenm.gov/affordable-housing
-   - Request affordable housing inventory with:
-     - Property name, address, unit count, AMI restriction, deed expiration
+Output: data/raw/affordable_housing/affordable_housing_units.geojson
 
-2. New Mexico Mortgage Finance Authority (MFA):
-   - https://housingnm.org/
-   - Has statewide affordable housing database
-
-3. HUD Subsidized Housing Database:
-   - https://www.hud.gov/program_offices/housing/mfh/exp/mfhdiscl
-   - Filter for Santa Fe, NM
-
-Place data in: data/raw/affordable_housing.csv
+Then process (run from project root so prepare-data finds input; then copy output to api/data):
+  npx tsx api/scripts/prepare-data.ts affordable_housing_units data/raw/affordable_housing/affordable_housing_units.geojson 4326
+  cp data/affordable_housing_units.parquet api/data/
+  # Add layer entry from data/manifest.json to api/data/manifest.json
 `,
   },
 

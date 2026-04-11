@@ -1,0 +1,36 @@
+{
+  "layers": {
+    "affordable_housing_units": {
+      "name": "affordable_housing_units",
+      "source": "data/raw/affordable_housing/affordable_housing_units.geojson",
+      "sourceSrid": 4326,
+      "geometryType": "Polygon | Point",
+      "featureCount": 35,
+      "extent": {
+        "minX": -106.060368,
+        "minY": 35.623587,
+        "maxX": -105.946846,
+        "maxY": 36.000183
+      },
+      "fields": {
+        "unit_id": "VARCHAR",
+        "property_name": "VARCHAR",
+        "address": "VARCHAR",
+        "total_units": "INTEGER",
+        "affordable_units": "INTEGER",
+        "income_restriction_pct_ami": "INTEGER",
+        "deed_restricted": "BOOLEAN",
+        "restriction_expires": "VARCHAR",
+        "property_type": "VARCHAR"
+      },
+      "crs": {
+        "geom_4326": "EPSG:4326",
+        "geom_utm13": "EPSG:32613"
+      },
+      "generatedAt": "2026-03-22T15:04:02.285Z",
+      "version": "1.0.0"
+    }
+  },
+  "generatedAt": "2026-03-22T15:04:02.286Z",
+  "version": "1.0.0"
+}

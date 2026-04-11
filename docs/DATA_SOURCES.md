@@ -15,7 +15,7 @@ https://gis.santafenm.gov/server/rest/services/Public_Viewer/MapServer
 
 ---
 
-## Loaded Layers (13)
+## Loaded Layers (14)
 
 ### Core Infrastructure
 
@@ -44,14 +44,14 @@ https://gis.santafenm.gov/server/rest/services/Public_Viewer/MapServer
 | transit_access | City ArcGIS REST | 67 | As updated | Public domain | Bus stops; 447 features |
 | parks | City ArcGIS REST | 75 | As updated | Public domain | City parks; 77 features |
 | bikeways | City ArcGIS REST | 72 | As updated | Public domain | Bike routes; 536 features |
+| affordable_housing_units | HUD LIHTC | — | Annual (Apr) | Public domain (US Gov) | LIHTC projects in Santa Fe County; 35 features; automated fetch |
 
 ---
 
-## Pending Layers (5)
+## Pending Layers (4)
 
 | Layer | Potential Source | Status | Notes |
 |-------|------------------|--------|-------|
-| affordable_housing_units | City/County Housing Dept | 🔴 Manual acquisition | Need to contact housing authority for deed-restricted unit locations |
 | vacancy_status | Derived | 🟡 Needs processing | Combine assessor occupancy + USPS vacancy data |
 | eviction_filings | NM Courts | 🟡 Privacy-sensitive | Requires geocoding; privacy considerations |
 | school_zones | School District GIS | 🟡 Different source | City GIS Layer 22 has points only, not attendance zones |
@@ -62,18 +62,21 @@ https://gis.santafenm.gov/server/rest/services/Public_Viewer/MapServer
 ## Data Acquisition Notes
 
 ### Affordable Housing
-**Status:** Requires manual outreach or geocoding
+**Status:** Loaded via HUD LIHTC (automated)
 
-**Option 1: Local Data (Preferred)**
+**Current source: HUD LIHTC Database**
+- **URL:** https://www.huduser.gov/portal/datasets/lihtc/property.html
+- **Fetch script:** `tsx scripts/fetch-affordable-housing-lihtc.ts`
+- **Data:** LIHTCPUB.CSV (national), filtered to NM + Santa Fe County (FIPS 35049)
+- **Geocoding:** HUD data is pre-geocoded; records missing lat/lon use U.S. Census Geocoder API (batch)
+- **Vintage:** Projects placed in service through 2023; updated annually (April)
+- **Known gaps:** LIHTC covers tax-credit projects only. Deed-restricted units from local programs (inclusionary zoning, MFA, etc.) are not included.
+
+**Option 2: Local supplement (optional)**
 - **Contact:** City of Santa Fe Housing Division or Santa Fe County Housing Authority
 - **Phone:** (505) 955-6339 (City Housing)
 - **Data needed:** Deed-restricted unit locations, AMI restrictions, expiration dates
-- LIHTC-funded projects provide 1,760 units in Santa Fe (40-80% AMI)
-
-**Option 2: HUD LIHTC Database**
-- **URL:** https://www.huduser.gov/lihtc/
-- **Format:** CSV with addresses (requires geocoding)
-- **Limitation:** National database, may not include all local programs
+- Use to merge with LIHTC for more complete coverage
 
 **Option 3: National Housing Preservation Database (NHPD)**
 - **URL:** https://preservationdatabase.org/

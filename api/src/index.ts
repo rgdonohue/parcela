@@ -14,6 +14,7 @@ import templatesRoute, {
   setAvailableLayers as setTemplateAvailableLayers,
 } from './routes/templates';
 import { initDatabase } from './lib/db/init';
+import { createServer as createNetServer } from 'node:net';
 import { join } from 'path';
 import { buildLayerRegistry } from './lib/layers/registry';
 
@@ -39,7 +40,48 @@ app.route('/api/query', queryRoute);
 app.route('/api/chat', chatRoute);
 app.route('/api/templates', templatesRoute);
 
-const port = Number(process.env.PORT) || 3000;
+/** Try binding to startPort, then startPort+1, … (only when PORT env is not set). */
+function findAvailablePort(startPort: number, maxAttempts: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const tryAt = (offset: number) => {
+      if (offset >= maxAttempts) {
+        reject(
+          new Error(`No free port found in range ${startPort}-${startPort + maxAttempts - 1}`)
+        );
+        return;
+      }
+      const candidate = startPort + offset;
+      const probe = createNetServer();
+      probe.once('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          tryAt(offset + 1);
+        } else {
+          reject(err);
+        }
+      });
+      probe.listen(candidate, () => {
+        probe.close((closeErr) => {
+          if (closeErr) reject(closeErr);
+          else resolve(candidate);
+        });
+      });
+    };
+    tryAt(0);
+  });
+}
+
+async function resolveListenPort(): Promise<number> {
+  const raw = process.env.PORT;
+  const unset = raw === undefined || raw === '';
+  const preferred = unset ? 3000 : Number(raw);
+  if (!unset && (Number.isNaN(preferred) || preferred < 1 || preferred > 65535)) {
+    throw new Error(`Invalid PORT: ${JSON.stringify(raw)}`);
+  }
+  if (unset) {
+    return findAvailablePort(preferred, 30);
+  }
+  return preferred;
+}
 
 // Initialize DuckDB on startup
 async function startServer() {
@@ -61,11 +103,25 @@ async function startServer() {
       `✓ Layer registry initialized (${layerRegistry.loadedLayerNames.length} loaded layers)`
     );
 
-    console.log(`Server is running on port ${port}`);
-    serve({
-      fetch: app.fetch,
-      port,
-    });
+    const port = await resolveListenPort();
+    const portEnvUnset = process.env.PORT === undefined || process.env.PORT === '';
+    if (portEnvUnset && port !== 3000) {
+      console.warn(
+        `Port 3000 is in use; listening on ${port}. Point the web app at this API (e.g. VITE_API_BASE=http://localhost:${port}).`
+      );
+    }
+
+    serve(
+      {
+        fetch: app.fetch,
+        port,
+      },
+      (addr) => {
+        const p =
+          addr && typeof addr === 'object' && 'port' in addr ? (addr as { port: number }).port : port;
+        console.log(`Server is listening on http://localhost:${p}`);
+      }
+    );
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

@@ -154,11 +154,11 @@ describe('/api/query', () => {
 });
 
 describe('/api/chat', () => {
-  it('returns unsupported grounding for unavailable affordable housing data', async () => {
+  it('returns unsupported grounding for unavailable eviction data', async () => {
     const response = await app.request('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: 'Show affordable housing locations' }),
+      body: JSON.stringify({ message: 'Show eviction filings in low-income tracts' }),
     });
 
     expect(response.status).toBe(400);
@@ -168,7 +168,7 @@ describe('/api/chat', () => {
     };
     expect(body.error).toBe('Unsupported request for current datasets');
     expect(body.grounding.status).toBe('unsupported');
-    expect(body.grounding.missingLayers).toContain('affordable_housing_units');
+    expect(body.grounding.missingLayers).toContain('eviction_filings');
   });
 });
 
@@ -181,7 +181,7 @@ describe('/api/templates', () => {
     };
 
     const templateIds = body.templates.map((template) => template.id);
-    expect(templateIds).not.toContain('affordable-near-transit');
+    expect(templateIds).not.toContain('evictions-low-income');
   });
 
   it('marks unrunnable templates when includeUnavailable=true', async () => {
@@ -191,7 +191,7 @@ describe('/api/templates', () => {
       templates: Array<{ id: string; runnable: boolean }>;
     };
 
-    const template = body.templates.find((candidate) => candidate.id === 'affordable-near-transit');
+    const template = body.templates.find((candidate) => candidate.id === 'evictions-low-income');
     expect(template).toBeDefined();
     expect(template?.runnable).toBe(false);
   });

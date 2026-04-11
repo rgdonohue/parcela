@@ -1,103 +1,111 @@
 # Project Status Report
 
-**Date**: February 23, 2026  
-**Scope**: NL-to-data grounding hardening + truthful map/query behavior
+**Date:** April 11, 2026  
+**Phase:** Post-build — hardening, user testing, and deployment prep  
+**Prior status:** February 23, 2026 (grounding hardening)
 
 ## Current Summary
 
-The project has moved beyond early "Week 5 readiness" and now runs with:
+The initial 8-week build and a March 2026 evaluation are complete. 14 of 15 evaluation recommendations have been addressed. The system runs with a full NL-to-map pipeline, 14 loaded spatial layers, 71+ tests (37 API + 34 frontend), and a CI/CD pipeline with Docker support.
 
-- 13 loaded spatial layers from `api/data/manifest.json`
-- Runtime layer registry (manifest + table introspection)
-- Strict grounding behavior for unsupported intents (no silent fallback substitution)
-- Canonical `/api/query` payload contract with backward compatibility
-- Query-level caps/defaults + truncation metadata
-- Geometry-aware selected-feature highlighting on the map
+The project is transitioning from "build" to "ship" — the remaining work is equity explanations, user testing, and production deployment.
 
-## What Is Implemented
+## System Snapshot
 
-### API Grounding + Contracts
+| Component | State |
+|-----------|-------|
+| Spatial layers loaded | 14 (109K+ features) |
+| API tests passing | 37+ |
+| Frontend tests passing | 34 |
+| CI pipeline | Lint → typecheck → test → Docker build |
+| LLM providers | Ollama (dev), Together.ai (prod) |
+| State management | Zustand with multi-turn context |
+| Export formats | GeoJSON, CSV |
+| Accessibility | ARIA labels, keyboard nav, screen reader |
 
-- `/api/query` now accepts canonical payload: `{ "query": StructuredQuery }`
-- Backward compatibility for direct-body `StructuredQuery` is retained temporarily
-- Query normalization added (zoning boolean aliases mapped to executable filters)
-- Registry-backed validation prevents binder failures from missing fields/layers
-- Temporal query requests are explicitly rejected as unsupported
+## Loaded Layers
 
-### Layer Availability Signaling
+| Layer | Features | Geometry |
+|-------|----------|----------|
+| parcels | 63,439 | Polygon |
+| building_footprints | 42,630 | Polygon |
+| zoning_districts | 851 | Polygon |
+| flood_zones | 227 | Polygon |
+| neighborhoods | 106 | Polygon |
+| parks | 77 | Polygon |
+| census_tracts | 57 | Polygon |
+| historic_districts | 5 | Polygon |
+| city_limits | 1 | Polygon |
+| short_term_rentals | 897 | Point |
+| transit_access | 447 | Point |
+| affordable_housing_units | 35 | Point |
+| bikeways | 536 | LineString |
+| hydrology | 109 | LineString |
 
-- `/api/layers` now returns runtime-aware layer metadata:
-  - `name`
-  - `schemaFields`
-  - `isLoaded`
-  - `loadedFields`
-  - `featureCount`
-  - `geometryType`
+**Total: 109,417 features across 14 layers**
 
-### Chat Grounding
+## Pending Layers
 
-- Added deterministic intent grounding pass before LLM parsing
-- Unsupported or partial requests return explicit grounding feedback:
-  - `status`: `exact_match | partial_match | unsupported`
-  - `requestedConcepts`, `missingConcepts`, `missingLayers`
-- Parser prompt now forbids invented layers/fields and disallows fallback substitution
+| Layer | Blocker | Priority |
+|-------|---------|----------|
+| school_zones | Need attendance boundary polygons from SFPS | Medium |
+| wildfire_risk | USFS raster needs vectorization | Medium |
+| vacancy_status | Multi-source derivation (assessor + USPS) | Deferred |
+| eviction_filings | Privacy-sensitive, needs data agreement | Deferred |
 
-### Query Performance + Metadata
+## What Changed Since Last Status (Feb 23)
 
-- Default per-geometry limits added when user omits `limit`
-- Hard caps enforce upper bounds for payload safety
-- Response metadata includes:
-  - `queryHash`
-  - `sourceLayers`
-  - `truncated`
-  - `maxFeaturesApplied`
-  - `hardCap`
-  - `defaultLimitApplied`
+- **Affordable housing loaded** — HUD LIHTC data fetched, processed, 35 features (uncommitted)
+- **Frontend tests added** — 34 tests for store, ChatPanel, ResultsPanel
+- **Accessibility improvements** — ARIA labels, keyboard navigation, screen reader support
+- **GeoJSON/CSV export** — Implemented in ResultsPanel with query metadata
+- **March evaluation completed** — 15 recommendations; 14 addressed
+- **April assessment completed** — Full project review and forward plan
 
-### Frontend Truthfulness Updates
+## Evaluation Scorecard
 
-- Selected-feature visualization now works across:
-  - polygons (fill + outline)
-  - lines
-  - points (halo/circle emphasis)
-- Results panel now shows provenance/grounding metadata:
-  - grounding status
-  - missing layers (when relevant)
-  - source layers
-  - query hash
-  - truncation notices
-- Map legend now has:
-  - choropleth units when available
-  - standardized default legend for non-choropleth queries
+| # | Recommendation | Status |
+|---|---------------|--------|
+| 1 | Fix type mismatches | Done |
+| 2 | Spatial indexes | Done |
+| 3 | Extract duplicated code | Done |
+| 4 | Env-based API URL | Done |
+| 5 | LLM timeout | Done |
+| 6 | LLM equity explanations | **Partial** |
+| 7 | Integration tests | Done |
+| 8 | Dockerfile + CI | Done |
+| 9 | .env.example | Done |
+| 10 | Production LLM client | Done |
+| 11 | Multi-turn conversation | Done |
+| 12 | Frontend state (Zustand) | Done |
+| 13 | Accessibility | Done |
+| 14 | Better example queries | Done |
+| 15 | Export functionality | Done |
 
-### Test Coverage Added
+## Known Gaps
 
-- `api/tests/intent-router.test.ts`
-- `api/tests/query-grounding.test.ts`
-
-All API tests currently pass.
-
-## Known Manual Roadblocks
-
-The following remain human/data-governance dependent:
-
-1. `affordable_housing_units` acquisition and licensing confirmation
-2. `eviction_filings` legal/privacy policy and anonymization workflow
-3. School attendance polygons (`school_zones`) from district source
-4. `wildfire_risk` source decision (raster workflow + parcel linkage policy)
-5. Vacancy derivation policy (`vacancy_status`) across assessor/USPS signals
+1. **Equity explanations fall back to deterministic** — `generateEquityExplanation()` exists but doesn't consistently call the LLM. This is the project's core differentiator
+2. **No production deployment yet** — Dockerfile works, no hosting configured
+3. **No auth/rate limiting** — Required before public access
+4. **No graceful shutdown** — Risk for containerized deploys
+5. **No real user testing** — All testing is developer-driven
+6. **VARCHAR numeric fields** — Handled via TRY_CAST workaround, should be fixed at data prep
 
 ## Validation Snapshot
 
 - `api`: typecheck passes
 - `api`: lint passes
-- `api`: tests pass (37 tests)
+- `api`: tests pass (37+)
 - `web`: typecheck passes
 - `web`: lint passes
+- `web`: tests pass (34)
 
 ## Immediate Next Work
 
-1. Add route-level integration tests for `/api/chat`, `/api/query`, `/api/layers`, `/api/templates` with fixture DB.
-2. Implement richer deterministic intent router scoring + disambiguation prompts for boundary/place references.
-3. Add explicit export/provenance UX for GeoJSON/CSV with query + data vintage metadata.
-4. Consolidate data prep pipeline usage around a single authoritative script path and document it in `README.md`.
+1. Commit affordable housing layer work
+2. Wire up LLM-driven equity explanations
+3. Recruit 3-5 real users for testing
+4. Add rate limiting and auth middleware
+5. Deploy to public URL
+
+See `BUILD_PLAN.md` for the full forward-looking action plan with detailed tasks.

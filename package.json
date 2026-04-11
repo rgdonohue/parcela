@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "fetch-data": "cd api && npx tsx ../scripts/fetch-public-data.ts",
+    "fetch-affordable-housing": "npx tsx scripts/fetch-affordable-housing-lihtc.ts",
     "prepare-data": "cd api && npx tsx scripts/prepare-data.ts --all"
+  },
+  "devDependencies": {
+    "adm-zip": "^0.5.16"
   }
 }
