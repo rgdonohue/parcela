@@ -45,17 +45,17 @@ describe('IntentParser', () => {
       {
         "selectLayer": "parcels",
         "attributeFilters": [
-          {"field": "zoning", "op": "eq", "value": "R-1"}
+          {"field": "assessed_value", "op": "gt", "value": 500000}
         ]
       }
     `);
 
-    const result = await parser.parse('Show residential parcels');
+    const result = await parser.parse('Parcels with assessed value over 500000');
 
     expect(result.query.selectLayer).toBe('parcels');
     expect(result.query.attributeFilters).toHaveLength(1);
-    expect(result.query.attributeFilters?.[0]?.field).toBe('zoning');
-    expect(result.query.attributeFilters?.[0]?.op).toBe('eq');
+    expect(result.query.attributeFilters?.[0]?.field).toBe('assessed_value');
+    expect(result.query.attributeFilters?.[0]?.op).toBe('gt');
     expect(result.confidence).toBeGreaterThan(0);
   });
 
@@ -87,7 +87,7 @@ describe('IntentParser', () => {
       {
         "selectLayer": "parcels",
         "attributeFilters": [
-          {"field": "zoning", "op": "in", "value": ["R-1", "R-2"]}
+          {"field": "assessed_value", "op": "gt", "value": 500000}
         ],
         "spatialFilters": [
           {
@@ -112,16 +112,16 @@ describe('IntentParser', () => {
       {
         "selectLayer": "short_term_rentals",
         "aggregate": {
-          "groupBy": ["property_type"],
-          "metrics": [{"field": "*", "op": "count", "alias": "str_count"}]
+          "groupBy": ["business_name"],
+          "metrics": [{"field": "*", "op": "count", "alias": "permit_count"}]
         }
       }
     `);
 
-    const result = await parser.parse('Count short-term rentals by property type');
+    const result = await parser.parse('Count short-term rental permits by business name');
 
     expect(result.query.aggregate).toBeDefined();
-    expect(result.query.aggregate?.groupBy).toContain('property_type');
+    expect(result.query.aggregate?.groupBy).toContain('business_name');
     expect(result.query.aggregate?.metrics).toHaveLength(1);
   });
 
@@ -167,12 +167,12 @@ describe('IntentParser', () => {
       {
         "selectLayer": "parcels",
         "attributeFilters": [
-          {"field": "zoning", "op": "eq", "value": "R-1"}
+          {"field": "assessed_value", "op": "gt", "value": 500000}
         ]
       }
     `);
 
-    const result = await parser.parse('Show residential parcels');
+    const result = await parser.parse('Parcels with assessed value over 500000');
 
     expect(result.confidence).toBeGreaterThanOrEqual(0);
     expect(result.confidence).toBeLessThanOrEqual(1);
@@ -193,5 +193,20 @@ describe('IntentParser', () => {
     expect(result.confidence).toBeLessThan(0.8);
     expect(result.query.selectLayer).toBe('unknown_layer');
   });
-});
 
+  it('builds prompts using only queryable runtime fields', () => {
+    parser.setAvailableLayers(['parcels']);
+    parser.setAvailableLayerFields({
+      parcels: ['parcel_id', 'address', 'acres', 'assessed_value'],
+    });
+
+    const prompt = (parser as unknown as {
+      buildPrompt: (userQuery: string, context: null) => string;
+    }).buildPrompt('Parcels with assessed value over 500000', null);
+
+    expect(prompt).toContain('assessed_value');
+    expect(prompt).not.toContain('zoning');
+    expect(prompt).not.toContain('land_use');
+    expect(prompt).not.toContain('year_built');
+  });
+});

@@ -100,7 +100,7 @@ describe('/api/query', () => {
     expect(body.type).toBe('FeatureCollection');
     expect(body.metadata.requestFormat).toBe('wrapped');
     expect(body.metadata.normalizationNotes).toContain(
-      'Mapped allows_residential=true to zone_code LIKE R%'
+      'Mapped allows_residential=true to a case-insensitive zone_code match on R%'
     );
   });
 

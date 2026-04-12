@@ -13,29 +13,29 @@ export const TEST_QUERIES = [
 
   // Simple attribute queries
   'Show all parcels',
-  'Show residential parcels',
   'Census tracts with median income below 40000',
   'Parcels with assessed value over 500000',
+  'Parks larger than 10 acres',
   
   // Spatial queries
   'Parcels within 500 meters of the Santa Fe River',
   'Parcels near arroyos',
   'Affordable housing units near schools',
-  'Short-term rentals within 1km of transit stops',
+  'Short-term rental permits issued in 2025',
   
   // Combined queries
-  'Residential parcels near transit',
-  'Vacant parcels within flood zones',
+  'Parcels near transit',
+  'Parcels within flood zones',
   'Parcels within 500m of arroyos and inside flood zones',
   
   // Aggregate queries
-  'Count short-term rentals by property type',
-  'Average assessed value by zoning district',
+  'Count short-term rental permits by business name',
+  'Average assessed value by address',
   'Number of affordable housing units by neighborhood',
   
   // Housing equity focused
-  'Vacant parcels near transit stops',
-  'Short-term rental density by census tract',
+  'High-value parcels near transit stops',
+  'Short-term rental permits near parks',
   'Eviction filings in low-income areas',
   'Affordable housing units near schools and transit',
   
@@ -49,10 +49,10 @@ export const TEST_QUERIES = [
  * (Used for manual testing and documentation)
  */
 export const EXPECTED_QUERY_STRUCTURES = {
-  'Show residential parcels': {
+  'Parcels with assessed value over 500000': {
     selectLayer: 'parcels',
     attributeFilters: [
-      { field: 'zoning', op: 'in', value: ['R-1', 'R-2', 'R-3'] },
+      { field: 'assessed_value', op: 'gt', value: 500000 },
     ],
   },
   'Parcels within 500 meters of the Santa Fe River': {
@@ -73,4 +73,3 @@ export const EXPECTED_QUERY_STRUCTURES = {
     ],
   },
 } as const;
-

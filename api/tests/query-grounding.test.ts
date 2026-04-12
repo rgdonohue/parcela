@@ -16,11 +16,11 @@ const registry: LayerRegistry = {
       geometryType: 'Polygon',
       schemaFields: {
         parcel_id: 'string',
-        land_use: 'string',
+        address: 'string | null',
         assessed_value: 'number | null',
       },
-      loadedFields: ['parcel_id', 'land_use', 'assessed_value'],
-      queryableFields: ['parcel_id', 'land_use', 'assessed_value'],
+      loadedFields: ['parcel_id', 'address', 'assessed_value'],
+      queryableFields: ['parcel_id', 'address', 'assessed_value'],
       featureCount: 10,
       isLoaded: true,
       description: 'Parcels',
@@ -75,7 +75,9 @@ describe('normalizeStructuredQuery', () => {
       op: 'like',
       value: 'R%',
     });
-    expect(normalized.notes.length).toBeGreaterThan(0);
+    expect(normalized.notes).toContain(
+      'Mapped allows_residential=true to a case-insensitive zone_code match on R%'
+    );
   });
 });
 

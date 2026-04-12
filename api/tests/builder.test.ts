@@ -2,33 +2,33 @@
  * Unit tests for QueryBuilder
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { QueryBuilder } from '../src/lib/orchestrator/builder';
 import type { StructuredQuery } from '../../shared/types/query';
 
 describe('QueryBuilder', () => {
   describe('Simple attribute queries', () => {
-    it('builds simple attribute filter query', () => {
+    it('builds simple numeric attribute filter query', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        attributeFilters: [{ field: 'zoning', op: 'eq', value: 'R-1' }],
+        attributeFilters: [{ field: 'assessed_value', op: 'gt', value: 500000 }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql, params } = builder.build();
 
       expect(sql).toContain('FROM "parcels"');
-      expect(sql).toContain('zoning');
+      expect(sql).toContain('"assessed_value" > $1');
       expect(sql).toContain('WHERE');
-      expect(params).toContain('R-1');
+      expect(params).toEqual([500000]);
     });
 
     it('builds query with multiple attribute filters (AND)', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
         attributeFilters: [
-          { field: 'zoning', op: 'eq', value: 'R-1' },
-          { field: 'land_use', op: 'eq', value: 'residential' },
+          { field: 'assessed_value', op: 'gt', value: 500000 },
+          { field: 'acres', op: 'lt', value: 1 },
         ],
         attributeLogic: 'and',
       };
@@ -36,8 +36,8 @@ describe('QueryBuilder', () => {
       const builder = new QueryBuilder(query);
       const { sql } = builder.build();
 
-      expect(sql).toContain('zoning');
-      expect(sql).toContain('land_use');
+      expect(sql).toContain('"assessed_value" > $1');
+      expect(sql).toContain('"acres" < $2');
       expect(sql).toContain('AND');
     });
 
@@ -45,8 +45,8 @@ describe('QueryBuilder', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
         attributeFilters: [
-          { field: 'zoning', op: 'eq', value: 'R-1' },
-          { field: 'zoning', op: 'eq', value: 'R-2' },
+          { field: 'address', op: 'like', value: '%Main%' },
+          { field: 'address', op: 'like', value: '%Palace%' },
         ],
         attributeLogic: 'or',
       };
@@ -55,13 +55,14 @@ describe('QueryBuilder', () => {
       const { sql } = builder.build();
 
       expect(sql).toContain('OR');
+      expect(sql).toContain('ILIKE');
     });
 
     it('builds query with IN operator', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
         attributeFilters: [
-          { field: 'zoning', op: 'in', value: ['R-1', 'R-2', 'R-3'] },
+          { field: 'parcel_id', op: 'in', value: ['P001', 'P002', 'P003'] },
         ],
       };
 
@@ -69,21 +70,19 @@ describe('QueryBuilder', () => {
       const { sql, params } = builder.build();
 
       expect(sql).toContain('IN');
-      expect(params.length).toBeGreaterThan(0);
+      expect(params).toEqual(['P001', 'P002', 'P003']);
     });
 
-    it('builds query with LIKE operator', () => {
+    it('uses ILIKE for case-insensitive pattern matching', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        attributeFilters: [
-          { field: 'address', op: 'like', value: '%Main St%' },
-        ],
+        attributeFilters: [{ field: 'address', op: 'like', value: '%Main St%' }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql, params } = builder.build();
 
-      expect(sql).toContain('LIKE');
+      expect(sql).toContain('"address" ILIKE $1');
       expect(params).toContain('%Main St%');
     });
   });
@@ -105,37 +104,27 @@ describe('QueryBuilder', () => {
       const { sql, params } = builder.build();
 
       expect(sql).toContain('ST_DWithin');
-      expect(sql).toContain('geom_utm13'); // Should use projected for distance
+      expect(sql).toContain('geom_utm13');
       expect(params).toContain(500);
     });
 
     it('builds intersects query using geographic geometry', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        spatialFilters: [
-          {
-            op: 'intersects',
-            targetLayer: 'flood_zones',
-          },
-        ],
+        spatialFilters: [{ op: 'intersects', targetLayer: 'flood_zones' }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql } = builder.build();
 
       expect(sql).toContain('ST_Intersects');
-      expect(sql).toContain('geom_4326'); // Should use geographic for intersects
+      expect(sql).toContain('geom_4326');
     });
 
     it('builds contains query using geographic geometry', () => {
       const query: StructuredQuery = {
         selectLayer: 'zoning_districts',
-        spatialFilters: [
-          {
-            op: 'contains',
-            targetLayer: 'parcels',
-          },
-        ],
+        spatialFilters: [{ op: 'contains', targetLayer: 'parcels' }],
       };
 
       const builder = new QueryBuilder(query);
@@ -152,18 +141,18 @@ describe('QueryBuilder', () => {
           {
             op: 'within_distance',
             targetLayer: 'hydrology',
-            targetFilter: [{ field: 'name', op: 'like', value: '%Santa Fe River%' }],
+            targetFilter: [{ field: 'type', op: 'eq', value: 'ARROYO' }],
             distance: 500,
           },
         ],
       };
 
       const builder = new QueryBuilder(query);
-      const { sql } = builder.build();
+      const { sql, params } = builder.build();
 
       expect(sql).toContain('ST_DWithin');
-      expect(sql).toContain('name');
-      expect(sql).toContain('LIKE');
+      expect(sql).toContain('"type" = $1');
+      expect(params).toContain('ARROYO');
     });
 
     it('builds query with multiple spatial filters', () => {
@@ -197,7 +186,7 @@ describe('QueryBuilder', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
         aggregate: {
-          groupBy: ['zoning'],
+          groupBy: ['address'],
           metrics: [
             { field: 'assessed_value', op: 'median', alias: 'median_value' },
             { field: '*', op: 'count', alias: 'count' },
@@ -209,7 +198,7 @@ describe('QueryBuilder', () => {
       const { sql } = builder.build();
 
       expect(sql).toContain('GROUP BY');
-      expect(sql).toContain('zoning');
+      expect(sql).toContain('address');
       expect(sql).toContain('MEDIAN');
       expect(sql).toContain('COUNT');
       expect(sql).toContain('median_value');
@@ -220,7 +209,7 @@ describe('QueryBuilder', () => {
     it('builds query with both attribute and spatial filters', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        attributeFilters: [{ field: 'zoning', op: 'eq', value: 'R-1' }],
+        attributeFilters: [{ field: 'assessed_value', op: 'gt', value: 500000 }],
         spatialFilters: [
           {
             op: 'within_distance',
@@ -233,7 +222,7 @@ describe('QueryBuilder', () => {
       const builder = new QueryBuilder(query);
       const { sql } = builder.build();
 
-      expect(sql).toContain('zoning');
+      expect(sql).toContain('"assessed_value" > $1');
       expect(sql).toContain('ST_DWithin');
       expect(sql.split('AND').length).toBeGreaterThan(1);
     });
@@ -267,13 +256,7 @@ describe('QueryBuilder', () => {
     it('throws error for within_distance without distance', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        spatialFilters: [
-          {
-            op: 'within_distance',
-            targetLayer: 'hydrology',
-            // Missing distance
-          },
-        ],
+        spatialFilters: [{ op: 'within_distance', targetLayer: 'hydrology' }],
       };
 
       const builder = new QueryBuilder(query);
@@ -285,28 +268,17 @@ describe('QueryBuilder', () => {
     it('builds proper k-NN query with ORDER BY distance LIMIT', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        spatialFilters: [
-          {
-            op: 'nearest',
-            targetLayer: 'transit_access',
-            limit: 5,
-          },
-        ],
+        spatialFilters: [{ op: 'nearest', targetLayer: 'transit_access', limit: 5 }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql, params } = builder.build();
 
-      // Should use ORDER BY distance ASC
       expect(sql).toContain('ORDER BY distance ASC');
-      // Should use LIMIT with k value
       expect(sql).toContain('LIMIT 5');
       expect(params).toHaveLength(0);
-      // Should use projected geometry for distance calculation
       expect(sql).toContain('geom_utm13');
-      // Should calculate distance
       expect(sql).toContain('ST_Distance');
-      // Should not use the old 10km buffer hack
       expect(sql).not.toContain('10000');
       expect(sql).not.toContain('ST_DWithin');
     });
@@ -335,34 +307,22 @@ describe('QueryBuilder', () => {
     it('builds k-NN query with attribute filters', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        attributeFilters: [{ field: 'zoning', op: 'eq', value: 'R-1' }],
-        spatialFilters: [
-          {
-            op: 'nearest',
-            targetLayer: 'transit_access',
-            limit: 10,
-          },
-        ],
+        attributeFilters: [{ field: 'assessed_value', op: 'gt', value: 500000 }],
+        spatialFilters: [{ op: 'nearest', targetLayer: 'transit_access', limit: 10 }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql } = builder.build();
 
       expect(sql).toContain('ORDER BY distance ASC');
-      expect(sql).toContain('zoning');
+      expect(sql).toContain('assessed_value');
       expect(sql).toContain('LIMIT');
     });
 
     it('throws error for nearest without limit', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        spatialFilters: [
-          {
-            op: 'nearest',
-            targetLayer: 'transit_access',
-            // Missing limit
-          },
-        ],
+        spatialFilters: [{ op: 'nearest', targetLayer: 'transit_access' }],
       };
 
       const builder = new QueryBuilder(query);
@@ -407,12 +367,7 @@ describe('QueryBuilder', () => {
       for (const op of topologicalOps) {
         const query: StructuredQuery = {
           selectLayer: 'parcels',
-          spatialFilters: [
-            {
-              op,
-              targetLayer: 'flood_zones',
-            },
-          ],
+          spatialFilters: [{ op, targetLayer: 'flood_zones' }],
         };
 
         const builder = new QueryBuilder(query);
@@ -427,53 +382,45 @@ describe('QueryBuilder', () => {
     it('generates gt comparison for numeric field', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        attributeFilters: [
-          { field: 'year_built', op: 'gt', value: 2000 },
-        ],
+        attributeFilters: [{ field: 'acres', op: 'gt', value: 1 }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql } = builder.build();
 
-      expect(sql).toContain('"year_built" > $1');
+      expect(sql).toContain('"acres" > $1');
       expect(sql).not.toContain('TRY_CAST');
     });
 
     it('generates eq comparison with correct placeholder', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        attributeFilters: [
-          { field: 'year_built', op: 'eq', value: 2000 },
-        ],
+        attributeFilters: [{ field: 'parcel_id', op: 'eq', value: 'P001' }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql } = builder.build();
 
-      expect(sql).toContain('"year_built" = $1');
+      expect(sql).toContain('"parcel_id" = $1');
     });
 
-    it('generates lte comparison for STR price field', () => {
+    it('generates lte comparison for building height', () => {
       const query: StructuredQuery = {
-        selectLayer: 'short_term_rentals',
-        attributeFilters: [
-          { field: 'price_per_night', op: 'lte', value: 200 },
-        ],
+        selectLayer: 'building_footprints',
+        attributeFilters: [{ field: 'height', op: 'lte', value: 30 }],
       };
 
       const builder = new QueryBuilder(query);
       const { sql } = builder.build();
 
-      expect(sql).toContain('"price_per_night" <= $1');
+      expect(sql).toContain('"height" <= $1');
       expect(sql).not.toContain('TRY_CAST');
     });
 
     it('generates gt comparison for assessed_value', () => {
       const query: StructuredQuery = {
         selectLayer: 'parcels',
-        attributeFilters: [
-          { field: 'assessed_value', op: 'gt', value: 500000 },
-        ],
+        attributeFilters: [{ field: 'assessed_value', op: 'gt', value: 500000 }],
       };
 
       const builder = new QueryBuilder(query);
