@@ -44,9 +44,9 @@ export function ChatPanel({
   };
 
   const exampleQueries = [
-    { category: 'HOUSING', query: 'Which neighborhoods have the most short-term rentals?' },
-    { category: 'TRANSIT', query: 'Show residential parcels within 300m of a bus stop' },
-    { category: 'EQUITY', query: 'Census tracts where median income is below 40000' },
+    { category: 'housing', query: 'Which neighborhoods have the most short-term rentals?' },
+    { category: 'transit', query: 'Show residential parcels within 300m of a bus stop' },
+    { category: 'equity', query: 'Census tracts where median income is below 40000' },
   ];
 
   return (
@@ -72,13 +72,13 @@ export function ChatPanel({
             <ul className="example-queries">
               {exampleQueries.map(({ category, query }, i) => (
                 <li key={i} className="example-query-item">
-                  <span className="example-query-category">{category}</span>
                   <button
                     type="button"
                     className="example-query-btn"
                     onClick={() => setInputValue(query)}
                     disabled={isLoading}
                   >
+                    <span className={`example-query-tag tag-${category}`}>{category}</span>
                     {query}
                   </button>
                 </li>
