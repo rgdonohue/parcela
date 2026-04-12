@@ -2,7 +2,7 @@
 /**
  * Data Preparation Script
  * 
- * Prepares geospatial data for use in Santa Fe Spatial Chat:
+ * Prepares geospatial data for use in Parcela:
  * - Validates SRID on ingest
  * - Transforms to dual geometries (WGS84 + UTM 13N)
  * - Exports to GeoParquet

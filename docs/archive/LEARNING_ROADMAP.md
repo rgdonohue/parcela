@@ -1,6 +1,6 @@
 # Learning & Implementation Roadmap
 
-**Project**: Santa Fe Spatial Chat  
+**Project**: Parcela  
 **Status**: Planning Complete → Ready for Implementation  
 **Timeline**: 8-week structured learning path + Week 9 housing stretch goals
 

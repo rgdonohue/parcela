@@ -1,4 +1,4 @@
-# Santa Fe Spatial Chat — Data Sources
+# Parcela — Data Sources
 
 Document each dataset used in the project, its provenance, update cadence, known limitations, and licensing/attribution requirements.
 

@@ -1,6 +1,6 @@
 # Data Acquisition Guide
 
-This guide documents how to acquire the geospatial datasets needed for Santa Fe Spatial Chat.
+This guide documents how to acquire the geospatial datasets needed for Parcela.
 
 ## Quick Start
 

@@ -1,4 +1,4 @@
-# Santa Fe Spatial Chat — Build Plan
+# Parcela — Build Plan
 
 **Last updated:** April 11, 2026  
 **Status:** Initial build complete. Entering hardening, user testing, and deployment phase.

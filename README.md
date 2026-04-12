@@ -1,11 +1,10 @@
-# Santa Fe Spatial Chat
+# Parcela
 
-**Ask questions about housing, land use, and equity in Santa Fe using plain English.**
+**Explore Santa Fe housing, land use, and equity — in plain English.**
 
-Santa Fe Spatial Chat is a natural language interface for exploring spatial data about Santa Fe, New Mexico. Type a question like *"Show me vacant residential parcels within 500 meters of a bus stop"* and see the results on an interactive map with a plain-English explanation.
+Parcela is a natural language interface for exploring spatial data about Santa Fe, New Mexico. Type a question like *"Show me vacant residential parcels within 500 meters of a bus stop"* and see the results on an interactive map with a plain-English explanation.
 
-![Santa Fe Spatial Chat Screenshot](./santa-fe-spatial-chat.png)
-
+**[parcela.app](https://parcela.app)**
 
 ---
 
@@ -76,7 +75,7 @@ Every query shows the structured operation that was executed, so you can verify 
 
 | Component | Technology |
 |-----------|------------|
-| Frontend | React 18, TypeScript, Vite, MapLibre GL JS, TailwindCSS |
+| Frontend | React 19, TypeScript, Vite, MapLibre GL JS, Zustand |
 | Backend | Hono (TypeScript), Zod validation |
 | Database | DuckDB with spatial extension |
 | LLM | Ollama (local) or Together.ai/Groq (production) |
@@ -95,14 +94,16 @@ Every query shows the structured operation that was executed, so you can verify 
 
 This project uses publicly available data about Santa Fe:
 
-| Layer | Source | Description |
-|-------|--------|-------------|
-| Parcels | Santa Fe County Assessor | Property boundaries, zoning, assessed values |
-| Census Tracts | US Census ACS | Demographics, income, housing characteristics |
-| Hydrology | City/County GIS | Rivers, streams, arroyos, acequias |
-| Zoning Districts | City of Santa Fe | Land use regulations |
-| Transit | City transit GTFS | Bus routes and stops |
-| Flood Zones | FEMA NFHL | Flood risk areas |
+| Layer | Source | Features |
+|-------|--------|----------|
+| Parcels, Building Footprints | County Assessor / City GIS | 106K |
+| Census Tracts | US Census ACS 5-Year | 57 |
+| Zoning, Neighborhoods, City Limits, Historic Districts | City of Santa Fe | 963 |
+| Hydrology, Flood Zones | City GIS / FEMA NFHL | 336 |
+| Transit Access | City GTFS | 447 |
+| Short-Term Rentals | City Permits | 897 |
+| Parks, Bikeways | City GIS | 613 |
+| Affordable Housing | HUD LIHTC | 35 |
 
 See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for complete documentation of data provenance, update cadence, and licensing.
 
@@ -114,12 +115,12 @@ See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for complete documentation of d
 
 ```bash
 # Build the image
-docker build -t santa-fe-spatial-chat .
+docker build -t parcela .
 
 # Run with local parquet data mounted
 docker run --rm -p 3000:3000 \
   -v $(pwd)/api/data:/app/api/data \
-  santa-fe-spatial-chat
+  parcela
 ```
 
 The API is now available at `http://localhost:3000`.
@@ -133,7 +134,7 @@ docker run --rm -p 3000:3000 \
   -v $(pwd)/api/data:/app/api/data \
   -e TOGETHER_API_KEY=your_key_here \
   -e CORS_ORIGIN=https://your-frontend.com \
-  santa-fe-spatial-chat
+  parcela
 ```
 
 | Variable | Default | Description |
@@ -165,8 +166,8 @@ curl http://localhost:3000/api/health
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/santa-fe-spatial-chat.git
-cd santa-fe-spatial-chat
+git clone https://github.com/rgdonohue/parcela.git
+cd parcela
 
 # Install dependencies
 cd api && npm install && cd ..
@@ -176,9 +177,6 @@ cd web && npm install && cd ..
 ollama pull qwen2.5:7b
 # or
 ollama pull llama3.1:8b
-
-# Copy environment template
-cp .env.example .env.local
 
 # Start the API (in one terminal)
 cd api && npm run dev
@@ -191,14 +189,14 @@ The frontend runs at `http://localhost:5173` and the API at `http://localhost:30
 
 ### Environment Variables
 
+See `api/.env.example` and `web/.env.example` for all available options. Key variables:
+
 ```bash
-# .env.local (development)
-LLM_PROVIDER=ollama
+# Development (default — uses local Ollama)
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:7b
 
-# .env.production
-LLM_PROVIDER=together
+# Production (set TOGETHER_API_KEY to switch from Ollama to Together.ai)
 TOGETHER_API_KEY=your_api_key_here
 ```
 
@@ -207,27 +205,30 @@ TOGETHER_API_KEY=your_api_key_here
 ## Project Structure
 
 ```
-santa-fe-spatial-chat/
+parcela/
 ├── api/                    # Backend (Hono + DuckDB)
 │   ├── src/
-│   │   ├── routes/         # API endpoints
+│   │   ├── routes/         # API endpoints (chat, query, layers, templates)
 │   │   ├── lib/
-│   │   │   ├── orchestrator/   # NL → query → results
+│   │   │   ├── orchestrator/   # NL → query → results pipeline
 │   │   │   ├── llm/            # LLM provider abstraction
-│   │   │   └── db/             # DuckDB setup and queries
+│   │   │   ├── middleware/     # Rate limiting
+│   │   │   ├── db/             # DuckDB setup and queries
+│   │   │   └── utils/          # Explanation, logging, query executor
 │   │   └── types/          # TypeScript types
-│   └── data/               # GeoParquet data files
+│   ├── tests/              # Vitest test suites (91 tests)
+│   └── data/               # GeoParquet data files + manifest
 │
 ├── web/                    # Frontend (React + MapLibre)
 │   ├── src/
 │   │   ├── components/     # ChatPanel, MapView, ResultsPanel
-│   │   ├── hooks/          # useChat, useMap
-│   │   └── lib/            # API client
+│   │   ├── store/          # Zustand state management
+│   │   └── lib/            # API client, choropleth
 │   └── public/
 │
 ├── shared/                 # Shared types between api/web
-├── scripts/                # Data preparation scripts
-└── docs/                   # Architecture and planning docs
+├── scripts/                # Data fetch and preparation scripts
+└── docs/                   # Architecture, planning, assessments
 ```
 
 ---
@@ -239,6 +240,7 @@ santa-fe-spatial-chat/
 | `/api/chat` | POST | Natural language query → results + explanation |
 | `/api/query` | POST | Direct structured query (bypass LLM) |
 | `/api/layers` | GET | Available data layers and their schemas |
+| `/api/templates` | GET | Pre-built equity analysis queries |
 | `/api/health` | GET | Service health check |
 
 ### Example: Natural Language Query
@@ -275,7 +277,7 @@ Response:
 
 ## Contributing
 
-This project is in early development. Contributions are welcome!
+This project is in active development. Contributions are welcome!
 
 ### Areas where help is needed
 
@@ -299,31 +301,38 @@ Please ensure TypeScript compiles without errors (`npm run typecheck`) and linti
 
 ## Roadmap
 
-### In Progress
-- [ ] Core query builder with spatial operations
-- [ ] Basic chat interface
-- [ ] Map rendering with results layer
+### Done
+- [x] NL query engine with constrained StructuredQuery schema
+- [x] Spatial operations (distance, intersects, contains, within, nearest)
+- [x] Multi-turn conversation refinement
+- [x] LLM-driven equity-aware explanations
+- [x] GeoJSON/CSV export with query metadata
+- [x] Accessibility (ARIA labels, keyboard nav, screen reader)
+- [x] Rate limiting, CORS, graceful shutdown
+- [x] Docker + CI/CD pipeline
+- [x] Structured JSON logging
+- [x] 14 spatial layers loaded (109K+ features)
 
-### Planned
-- [ ] Pre-built analysis templates (STR density, affordability gap, etc.)
-- [ ] Aggregation queries (count by neighborhood, median by zone)
-- [ ] Temporal comparisons (change over time)
-- [ ] PDF report export for presentations
-- [ ] Multi-turn conversation ("Now filter those to just the Southside")
+### Next
+- [ ] Production deployment (Railway/Fly.io + Vercel)
+- [ ] User testing with housing advocates and planners
+- [ ] School zones and wildfire risk data layers
 
-### Future Ideas
-- [ ] User-uploaded data layers
+### Future
+- [ ] PDF report export for council/community presentations
 - [ ] Shareable query URLs
+- [ ] User-uploaded data layers
 - [ ] Voice input for accessibility
-- [ ] Comparison mode (side-by-side results)
 
 ---
 
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — Technical design and system overview
-- [Build Plan](docs/BUILD_PLAN.md) — Week-by-week development roadmap
+- [Build Plan](docs/BUILD_PLAN.md) — Forward-looking action plan
 - [Data Sources](docs/DATA_SOURCES.md) — Dataset provenance and licensing
+- [Project Assessment](docs/ASSESSMENT_2026_04_11.md) — Current state and next steps
+- [Code Evaluation](docs/project-evaluation.md) — Architecture review and recommendations
 
 ---
 
@@ -345,7 +354,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 Questions, ideas, or feedback? Open an issue or reach out:
 
-- GitHub Issues: [github.com/yourusername/santa-fe-spatial-chat/issues](https://github.com/yourusername/santa-fe-spatial-chat/issues)
+- GitHub Issues: [github.com/rgdonohue/parcela/issues](https://github.com/rgdonohue/parcela/issues)
 
 ---
 

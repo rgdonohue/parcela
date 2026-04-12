@@ -1,4 +1,4 @@
-# Santa Fe Spatial Chat — Implementation Plan
+# Parcela — Implementation Plan
 
 **Status**: Planning phase complete, ready to begin implementation  
 **Created**: Based on review of ARCHITECTURE.md, BUILD_PLAN.md, and DATA_SOURCES.md

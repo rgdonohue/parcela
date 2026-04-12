@@ -1,4 +1,4 @@
-# Multi-stage build for Santa Fe Spatial Chat
+# Multi-stage build for Parcela
 # Stage 1: Build API and Web
 # Stage 2: Production runtime with DuckDB + spatial extension
 

@@ -2,7 +2,7 @@
 /**
  * Automated Data Acquisition Script
  *
- * Downloads publicly available datasets for Santa Fe Spatial Chat:
+ * Downloads publicly available datasets for Parcela:
  * - US Census TIGER/Line shapefiles (census tracts)
  * - US Census ACS demographic data
  * - FEMA National Flood Hazard Layer
@@ -409,8 +409,8 @@ function generateReport(results: Record<string, boolean>): void {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
-  console.log('Santa Fe Spatial Chat - Data Acquisition');
-  console.log('========================================\n');
+  console.log('Parcela - Data Acquisition');
+  console.log('==========================\n');
 
   ensureDir(RAW_DATA_DIR);
   ensureDir(PROCESSED_DATA_DIR);

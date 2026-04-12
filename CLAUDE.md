@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Santa Fe Spatial Chat is a natural language interface for querying spatial data about housing, land use, and equity in Santa Fe, NM. Users ask questions like "Show me vacant residential parcels within 500 meters of a bus stop" and receive map-rendered results with explanations.
+Parcela (parcela.app) is a natural language interface for querying spatial data about housing, land use, and equity in Santa Fe, NM. Users ask questions like "Show me vacant residential parcels within 500 meters of a bus stop" and receive map-rendered results with explanations.
 
 ## Common Commands
 
@@ -27,8 +27,8 @@ npm run lint         # ESLint
 
 ### Docker
 ```bash
-docker build -t santa-fe-spatial-chat .
-docker run -p 3000:3000 -v ./api/data:/app/api/data santa-fe-spatial-chat
+docker build -t parcela .
+docker run -p 3000:3000 -v ./api/data:/app/api/data parcela
 ```
 
 ### CI

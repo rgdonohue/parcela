@@ -2,7 +2,7 @@
 
 ## prepare-data.ts
 
-Prepares geospatial data for use in Santa Fe Spatial Chat by:
+Prepares geospatial data for use in Parcela by:
 - Validating SRID on ingest (fails fast on unknown/missing SRID)
 - Transforming to dual geometries (WGS84 `geom_4326` + UTM 13N `geom_utm13`)
 - Exporting to GeoParquet format

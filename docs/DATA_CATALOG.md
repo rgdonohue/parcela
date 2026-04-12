@@ -1,4 +1,4 @@
-# Santa Fe Spatial Chat — Data Catalog
+# Parcela — Data Catalog
 
 **Last Updated:** December 13, 2025
 **Status:** 13 of 18 layers loaded (72%)

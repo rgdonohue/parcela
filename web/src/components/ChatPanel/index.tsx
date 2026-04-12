@@ -52,9 +52,9 @@ export function ChatPanel({
   return (
     <div className="chat-panel" role="region" aria-label="Chat">
       <div className="chat-header">
-        <h2>Santa Fe Spatial Chat</h2>
+        <h2>Parcela</h2>
         <p className="chat-subtitle">
-          Ask questions about housing, land use, and equity
+          Explore Santa Fe housing, land use, and equity
         </p>
       </div>
 

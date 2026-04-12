@@ -1,5 +1,5 @@
 /**
- * API client for Santa Fe Spatial Chat
+ * API client for Parcela
  */
 
 import type {

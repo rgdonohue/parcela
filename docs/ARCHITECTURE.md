@@ -1,4 +1,4 @@
-# Santa Fe Spatial Chat — Technical Architecture
+# Parcela — Technical Architecture
 
 A tool for investigating housing affordability, land use patterns, and equity in Santa Fe, NM through natural language spatial queries. Users ask questions like "Which parcels are within 500m of an arroyo and zoned residential?" and receive map-rendered results with explanations.
 
@@ -517,7 +517,7 @@ User: "Which residential parcels are near the Santa Fe River?"
 ## Directory Structure
 
 ```
-santa-fe-spatial-chat/
+parcela/
 ├── api/                          # Backend
 │   ├── src/
 │   │   ├── index.ts              # Hono app entry

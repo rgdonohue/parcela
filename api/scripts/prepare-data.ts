@@ -2,7 +2,7 @@
 /**
  * Data Preparation Script
  *
- * Prepares geospatial data for use in Santa Fe Spatial Chat:
+ * Prepares geospatial data for use in Parcela:
  * - Validates SRID on ingest
  * - Filters data to Santa Fe AOI (for statewide datasets like census tracts)
  * - Renames fields to match LAYER_SCHEMAS

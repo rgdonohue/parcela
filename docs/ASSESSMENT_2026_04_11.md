@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-Santa Fe Spatial Chat is a well-architected late-prototype / early-beta spatial query system that lets non-technical users ask natural language questions about housing, land use, and equity in Santa Fe. The core engineering is solid — the constrained query schema, dual-CRS discipline, and layered validation pipeline are correct design decisions that show real GIS understanding. The project is in a common position: the hard infrastructure work is done, but there's a gap between "technically functional" and "useful to its intended audience."
+Parcela is a well-architected late-prototype / early-beta spatial query system that lets non-technical users ask natural language questions about housing, land use, and equity in Santa Fe. The core engineering is solid — the constrained query schema, dual-CRS discipline, and layered validation pipeline are correct design decisions that show real GIS understanding. The project is in a common position: the hard infrastructure work is done, but there's a gap between "technically functional" and "useful to its intended audience."
 
 Since the March 2026 evaluation, 13 of 15 recommendations have been addressed. The two most impactful remaining gaps are the equity explanation system (the project's core differentiator) and production deployment readiness.
 

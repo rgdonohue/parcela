@@ -1,5 +1,5 @@
 /**
- * API types for the Santa Fe Spatial Chat frontend
+ * API types for the Parcela frontend
  */
 
 import type { Feature, Geometry } from 'geojson';

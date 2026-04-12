@@ -19,9 +19,9 @@ describe('ChatPanel', () => {
   it('renders header and input', () => {
     render(<ChatPanel {...defaultProps} />);
 
-    expect(screen.getByText('Santa Fe Spatial Chat')).toBeInTheDocument();
+    expect(screen.getByText('Parcela')).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeInTheDocument();
   });
 
   it('shows example queries when no messages', () => {
@@ -97,7 +97,7 @@ describe('ChatPanel', () => {
     render(<ChatPanel {...defaultProps} isLoading={true} />);
 
     expect(screen.getByRole('textbox')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Thinking...' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Processing query' })).toBeDisabled();
   });
 
   it('does not submit empty input', () => {

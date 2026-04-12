@@ -1,4 +1,4 @@
-# Santa Fe Spatial Chat — Project Evaluation
+# Parcela — Project Evaluation
 
 **Evaluator role:** Senior Project Manager, Solutions Architect, GIS Application Developer
 **Date:** March 16, 2026
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Santa Fe Spatial Chat is a well-architected natural language interface for querying spatial data about housing, land use, and equity in Santa Fe, NM. The project translates plain-English questions into constrained spatial queries executed against DuckDB, rendering results on a MapLibre GL map with equity-aware explanations.
+Parcela is a well-architected natural language interface for querying spatial data about housing, land use, and equity in Santa Fe, NM. The project translates plain-English questions into constrained spatial queries executed against DuckDB, rendering results on a MapLibre GL map with equity-aware explanations.
 
 The architecture is sound and reflects strong design discipline: a constrained query schema (not arbitrary SQL), dual-CRS geometry handling, type-safe TypeScript end-to-end, Zod validation of LLM output, and parameterized queries. The codebase is clean, well-organized, and shows evidence of iterative hardening (grounding checks, query normalization, result caps).
 
