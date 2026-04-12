@@ -17,7 +17,7 @@ const mockFeatures: Feature<Geometry, Record<string, unknown>>[] = [
       type: 'Polygon',
       coordinates: [[[-105.94, 35.69], [-105.93, 35.69], [-105.93, 35.68], [-105.94, 35.68], [-105.94, 35.69]]],
     },
-    properties: { parcel_id: 'P001', zoning: 'R-1', assessed_value: 350000 },
+    properties: { parcel_id: 'P001', assessed_value: 350000, address: '100 Main St' },
   },
   {
     type: 'Feature',
@@ -25,7 +25,7 @@ const mockFeatures: Feature<Geometry, Record<string, unknown>>[] = [
       type: 'Polygon',
       coordinates: [[[-105.938, 35.688], [-105.937, 35.688], [-105.937, 35.687], [-105.938, 35.687], [-105.938, 35.688]]],
     },
-    properties: { parcel_id: 'P002', zoning: 'R-1', assessed_value: 475000 },
+    properties: { parcel_id: 'P002', assessed_value: 475000, address: '200 Palace Ave' },
   },
 ];
 

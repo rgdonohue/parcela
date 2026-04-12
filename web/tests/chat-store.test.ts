@@ -14,9 +14,9 @@ vi.mock('../src/lib/api', () => ({
   sendChatMessage: vi.fn(),
   ApiClientError: class ApiClientError extends Error {
     statusCode: number;
-    details?: string;
+    details?: unknown;
     suggestions?: string[];
-    constructor(message: string, statusCode: number, details?: string, suggestions?: string[]) {
+    constructor(message: string, statusCode: number, details?: unknown, suggestions?: string[]) {
       super(message);
       this.name = 'ApiClientError';
       this.statusCode = statusCode;
@@ -27,18 +27,18 @@ vi.mock('../src/lib/api', () => ({
 }));
 
 const mockResponse: ChatResponse = {
-  query: { selectLayer: 'parcels', attributeFilters: [{ field: 'zoning', op: 'eq', value: 'R-1' }] },
+  query: { selectLayer: 'parcels', attributeFilters: [{ field: 'assessed_value', op: 'gt', value: 500000 }] },
   result: {
     type: 'FeatureCollection',
     features: [
       {
         type: 'Feature',
         geometry: { type: 'Polygon', coordinates: [[[-105.94, 35.69], [-105.93, 35.69], [-105.93, 35.68], [-105.94, 35.68], [-105.94, 35.69]]] },
-        properties: { parcel_id: 'P001', zoning: 'R-1' },
+        properties: { parcel_id: 'P001', assessed_value: 750000 },
       },
     ],
   },
-  explanation: 'Found 1 parcel where zoning equal to R-1.',
+  explanation: 'Found 1 parcels where assessed value greater than 500000.',
   confidence: 0.8,
   grounding: {
     status: 'exact_match',
@@ -97,13 +97,15 @@ describe('Chat store', () => {
     const { sendChatMessage } = await import('../src/lib/api');
     vi.mocked(sendChatMessage).mockResolvedValue(mockResponse);
 
-    await getState().sendMessage('Show R-1 parcels');
+    await getState().sendMessage('Show high-value parcels');
 
     const state = getState();
     expect(state.messages).toHaveLength(2);
     expect(state.messages[0]!.role).toBe('user');
     expect(state.messages[1]!.role).toBe('assistant');
-    expect(state.messages[1]!.content).toBe('Found 1 parcel where zoning equal to R-1.');
+    expect(state.messages[1]!.content).toBe(
+      'Found 1 parcels where assessed value greater than 500000.'
+    );
     expect(state.features).toHaveLength(1);
     expect(state.currentQuery?.selectLayer).toBe('parcels');
     expect(state.showResults).toBe(true);
@@ -114,7 +116,7 @@ describe('Chat store', () => {
     const { sendChatMessage } = await import('../src/lib/api');
     vi.mocked(sendChatMessage).mockResolvedValue(mockResponse);
 
-    await getState().sendMessage('Show R-1 parcels');
+    await getState().sendMessage('Show high-value parcels');
 
     const ctx = getState().conversationContext;
     expect(ctx).not.toBeNull();
@@ -139,6 +141,32 @@ describe('Chat store', () => {
     // Should not update features or context on error
     expect(state.features).toHaveLength(0);
     expect(state.conversationContext).toBeNull();
+  });
+
+  it('formats array error details into readable text', async () => {
+    const { sendChatMessage, ApiClientError } = await import('../src/lib/api');
+    vi.mocked(sendChatMessage).mockRejectedValue(
+      new ApiClientError('Could not understand query', 400, ['Missing layer', 'Unknown field'])
+    );
+
+    await getState().sendMessage('Bad query');
+
+    expect(getState().messages[1]!.error).toBe(
+      'Could not understand query: Missing layer; Unknown field'
+    );
+  });
+
+  it('formats object error details using message field', async () => {
+    const { sendChatMessage, ApiClientError } = await import('../src/lib/api');
+    vi.mocked(sendChatMessage).mockRejectedValue(
+      new ApiClientError('Could not understand query', 400, { message: 'Layer not loaded' })
+    );
+
+    await getState().sendMessage('Bad query');
+
+    expect(getState().messages[1]!.error).toBe(
+      'Could not understand query: Layer not loaded'
+    );
   });
 
   it('selectFeature updates selectedFeature', () => {

@@ -27,8 +27,8 @@ describe('ChatPanel', () => {
   it('shows example queries when no messages', () => {
     render(<ChatPanel {...defaultProps} />);
 
-    expect(screen.getByText(/neighborhoods.*short-term rentals/i)).toBeInTheDocument();
-    expect(screen.getByText(/residential parcels.*bus stop/i)).toBeInTheDocument();
+    expect(screen.getByText(/median income is below 40000/i)).toBeInTheDocument();
+    expect(screen.getByText(/parks larger than 10 acres/i)).toBeInTheDocument();
   });
 
   it('hides examples when messages exist', () => {
@@ -43,7 +43,7 @@ describe('ChatPanel', () => {
 
     render(<ChatPanel {...defaultProps} messages={messages} />);
 
-    expect(screen.queryByText(/neighborhoods.*short-term rentals/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/median income is below 40000/i)).not.toBeInTheDocument();
   });
 
   it('populates input when example query clicked', () => {
@@ -51,12 +51,12 @@ describe('ChatPanel', () => {
 
     const buttons = screen.getAllByRole('button');
     const exampleBtn = buttons.find((btn) =>
-      btn.textContent?.includes('neighborhoods')
+      btn.textContent?.includes('1 million dollars')
     );
     fireEvent.click(exampleBtn!);
 
     expect(screen.getByRole('textbox')).toHaveValue(
-      'Which neighborhoods have the most short-term rentals?'
+      'Parcels with assessed value over 1 million dollars'
     );
   });
 

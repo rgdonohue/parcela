@@ -44,9 +44,10 @@ export function ChatPanel({
   };
 
   const exampleQueries = [
-    { category: 'housing', query: 'Which neighborhoods have the most short-term rentals?' },
-    { category: 'transit', query: 'Show residential parcels within 300m of a bus stop' },
     { category: 'equity', query: 'Census tracts where median income is below 40000' },
+    { category: 'transit', query: 'Parks larger than 10 acres' },
+    { category: 'transit', query: 'Short-term rental permits near downtown' },
+    { category: 'housing', query: 'Parcels with assessed value over 1 million dollars' },
   ];
 
   return (

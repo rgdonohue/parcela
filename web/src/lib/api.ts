@@ -23,19 +23,48 @@ const API_BASE: string =
     ? 'http://localhost:3000'
     : '');
 
+function formatErrorDetails(details: unknown): string | undefined {
+  if (typeof details === 'string') {
+    return details;
+  }
+
+  if (Array.isArray(details)) {
+    const values = details
+      .map((value) => formatErrorDetails(value))
+      .filter((value): value is string => Boolean(value));
+    return values.length > 0 ? values.join('; ') : undefined;
+  }
+
+  if (details && typeof details === 'object') {
+    const message =
+      ('message' in details && typeof details.message === 'string'
+        ? details.message
+        : undefined) ??
+      ('error' in details && typeof details.error === 'string'
+        ? details.error
+        : undefined);
+
+    if (message) {
+      return message;
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Custom error class for API errors
  */
 export class ApiClientError extends Error {
   statusCode: number;
-  details?: string;
+  details?: unknown;
   suggestions?: string[];
   grounding?: GroundingInfo;
 
   constructor(
     message: string,
     statusCode: number,
-    details?: string,
+    details?: unknown,
     suggestions?: string[],
     grounding?: GroundingInfo
   ) {
@@ -76,7 +105,7 @@ async function apiFetch<T>(
         const errorBody = (await response.json()) as Record<string, unknown>;
         errorMessage = (errorBody.error as string) ?? errorMessage;
         // API returns 'message' field with more details
-        details = (errorBody.message as string) ?? (errorBody.details as string);
+        details = formatErrorDetails(errorBody.message) ?? formatErrorDetails(errorBody.details);
         // API may return suggestions for how to fix the query
         suggestions = errorBody.suggestions as string[] | undefined;
         grounding = errorBody.grounding as GroundingInfo | undefined;

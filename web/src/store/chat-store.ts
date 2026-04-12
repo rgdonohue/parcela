@@ -56,6 +56,30 @@ interface ChatState {
   clearConversation: () => void;
 }
 
+function formatErrorDetails(details: unknown): string | undefined {
+  if (typeof details === 'string') {
+    return details;
+  }
+
+  if (Array.isArray(details)) {
+    const values = details
+      .map((value) => formatErrorDetails(value))
+      .filter((value): value is string => Boolean(value));
+    return values.length > 0 ? values.join('; ') : undefined;
+  }
+
+  if (details && typeof details === 'object') {
+    if ('message' in details && typeof details.message === 'string') {
+      return details.message;
+    }
+    if ('error' in details && typeof details.error === 'string') {
+      return details.error;
+    }
+  }
+
+  return undefined;
+}
+
 export const useChatStore = create<ChatState>((set, get) => ({
   // ── Initial state ──
   messages: [],
@@ -132,11 +156,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (error instanceof ApiClientError) {
         errorMessage = error.message;
         grounding = error.grounding;
-        if (error.details) {
-          errorMessage += `: ${error.details}`;
+        const formattedDetails = formatErrorDetails(error.details);
+        if (formattedDetails) {
+          errorMessage += `: ${formattedDetails}`;
         }
         if (error.suggestions && error.suggestions.length > 0) {
-          content = `I couldn't complete that request. ${error.details || error.message}\n\nHere are some suggestions:\n• ${error.suggestions.join('\n• ')}`;
+          content = `I couldn't complete that request. ${formattedDetails || error.message}\n\nHere are some suggestions:\n• ${error.suggestions.join('\n• ')}`;
           errorMessage = '';
         }
       }
