@@ -7,8 +7,8 @@
 
 import type { LLMClient, CompletionOptions } from './types';
 
-/** Default request timeout in milliseconds (30 seconds) */
-const DEFAULT_TIMEOUT_MS = 30_000;
+/** Default request timeout in milliseconds (60 seconds — first query loads the model into memory) */
+const DEFAULT_TIMEOUT_MS = 60_000;
 
 /**
  * Ollama API client
