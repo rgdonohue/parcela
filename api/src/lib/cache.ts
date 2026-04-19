@@ -175,13 +175,27 @@ export const queryCache = new LRUCache<{
   15 * 60 * 1000 // 15 minute TTL
 );
 
+function sortKeysDeep(val: unknown): unknown {
+  if (Array.isArray(val)) return val.map(sortKeysDeep);
+  if (val && typeof val === 'object') {
+    const src = val as Record<string, unknown>;
+    return Object.keys(src).sort().reduce<Record<string, unknown>>((acc, key) => {
+      acc[key] = sortKeysDeep(src[key]);
+      return acc;
+    }, {});
+  }
+  return val;
+}
+
 /**
- * Generate cache key for structured query
- * Normalizes the query to ensure consistent keys
+ * Generate a canonical cache key for a structured query.
+ * Recursively sorts object keys at every depth so semantically equivalent
+ * queries produce identical keys, without stripping nested content (the
+ * JSON.stringify replacer-array behavior was an allowlist at every depth,
+ * which collapsed filter objects to {} and caused cache collisions).
  */
 export function structuredQueryKey(query: StructuredQuery): string {
-  // Sort keys for consistent serialization
-  return JSON.stringify(query, Object.keys(query).sort());
+  return JSON.stringify(sortKeysDeep(query));
 }
 
 /**

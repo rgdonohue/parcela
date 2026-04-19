@@ -129,12 +129,16 @@ async function loadParquetLayer(
           geomExpr = 'ST_GeomFromWKB(geometry)';
         }
 
+        // IMPORTANT: the 4th arg (always_xy=true) forces lon/lat axis order.
+        // Without it, PROJ's default axis handling for EPSG:4326 may swap
+        // axes and ST_Transform silently emits Infinity coordinates, making
+        // every spatial filter return 0 matches.
         const sql = `
           CREATE TABLE "${layerName}" AS
           SELECT
             * EXCLUDE (geometry),
             ${geomExpr} AS geom_4326,
-            ST_Transform(${geomExpr}, 'EPSG:4326', 'EPSG:32613') AS geom_utm13
+            ST_Transform(${geomExpr}, 'EPSG:4326', 'EPSG:32613', true) AS geom_utm13
           FROM read_parquet('${parquetPath}');
         `;
 
