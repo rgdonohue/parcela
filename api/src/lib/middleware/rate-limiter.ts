@@ -75,18 +75,45 @@ export class RateLimiter {
 /**
  * Create a Hono middleware that enforces the given RateLimiter.
  *
- * Reads the client IP from X-Forwarded-For (first hop) → X-Real-IP → 'unknown'.
+ * Reads the client IP from forwarding headers only when TRUSTED_PROXY_COUNT is
+ * configured. With no trusted proxy configured, all clients share the direct
+ * bucket because Hono's Request does not expose the peer socket address.
  * Returns 429 with a Retry-After header (in seconds) when the limit is exceeded.
  */
+
+export function getTrustedProxyCount(): number {
+  const raw = process.env.TRUSTED_PROXY_COUNT ?? '0';
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
+}
+
+export function getClientIp(headers: Headers, trustedProxyCount = getTrustedProxyCount()): string {
+  if (trustedProxyCount <= 0) {
+    return 'direct';
+  }
+
+  const forwarded = headers
+    .get('x-forwarded-for')
+    ?.split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+
+  if (forwarded && forwarded.length > trustedProxyCount) {
+    return forwarded[forwarded.length - trustedProxyCount - 1] ?? 'unknown';
+  }
+
+  const realIp = headers.get('x-real-ip')?.trim();
+  return realIp && realIp.length > 0 ? realIp : 'unknown';
+}
+
 export function createRateLimitMiddleware(
   limiter: RateLimiter
 ): (c: Context, next: Next) => Promise<Response | void> {
   return async (c: Context, next: Next): Promise<Response | void> => {
-    const forwarded = c.req.raw.headers.get('x-forwarded-for');
-    const ip =
-      (forwarded ? forwarded.split(',')[0]!.trim() : null) ??
-      c.req.raw.headers.get('x-real-ip') ??
-      'unknown';
+    const ip = getClientIp(c.req.raw.headers);
 
     const { allowed, retryAfterMs } = limiter.check(ip);
     if (!allowed) {

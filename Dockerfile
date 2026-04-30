@@ -14,6 +14,7 @@ COPY shared/ shared/
 COPY api/package*.json api/
 RUN cd api && npm ci
 COPY api/ api/
+RUN cd api && npm run build
 
 # Install and build Web
 COPY web/package*.json web/
@@ -37,6 +38,11 @@ COPY --from=build /app/shared/ shared/
 # Copy API with node_modules (DuckDB has native bindings)
 COPY --from=build /app/api/ api/
 
+# DuckDB's spatial extension is downloaded and cached at image build time here.
+# This build step requires network access to DuckDB's extension repository; runtime
+# containers should only need LOAD spatial from the bundled cache.
+RUN cd api && node -e "const duckdb=require('duckdb'); const db=new duckdb.Database(':memory:'); const conn=db.connect(); conn.exec('INSTALL spatial; LOAD spatial;', (err)=>{ if (err) { console.error(err); process.exit(1); } conn.close(); db.close(); });"
+
 # Copy built web assets
 COPY --from=build /app/web/dist/ web/dist/
 
@@ -51,5 +57,5 @@ EXPOSE 3000
 
 WORKDIR /app/api
 
-# Use tsx to run TypeScript directly (matches dev workflow)
-CMD ["npx", "tsx", "src/index.ts"]
+# Run compiled JavaScript in production.
+CMD ["node", "dist/api/src/index.js"]

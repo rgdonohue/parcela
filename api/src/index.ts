@@ -16,27 +16,79 @@ import templatesRoute, {
 } from './routes/templates';
 import { initDatabase } from './lib/db/init';
 import { createServer as createNetServer } from 'node:net';
+import { randomUUID } from 'node:crypto';
 import { join } from 'path';
 import { buildLayerRegistry } from './lib/layers/registry';
-import { RateLimiter, createRateLimitMiddleware } from './lib/middleware/rate-limiter';
+import {
+  RateLimiter,
+  createRateLimitMiddleware,
+  getClientIp,
+} from './lib/middleware/rate-limiter';
 import { log } from './lib/logger';
 import { createLLMClient } from './lib/llm';
+import { getRequestId, setRequestId } from './lib/request-id';
 import type { Database } from 'duckdb';
 
 const app = new Hono();
 
+// ── Request IDs ──────────────────────────────────────────────────────────────
+app.use('*', async (c, next) => {
+  const requestId = c.req.header('x-request-id') ?? randomUUID();
+  setRequestId(c.req.raw, requestId);
+  c.header('X-Request-ID', requestId);
+  await next();
+  return;
+});
+
 // ── CORS ───────────────────────────────────────────────────────────────────────
-// Allow origin from CORS_ORIGIN env var; default to '*' for local development.
-// Set CORS_ORIGIN=https://myapp.com in production.
-const corsOrigin = process.env.CORS_ORIGIN ?? '*';
+function resolveCorsOrigin(): string {
+  const configured = process.env.CORS_ORIGIN;
+  if (process.env.NODE_ENV === 'production' && (!configured || configured === '*')) {
+    throw new Error('CORS_ORIGIN must be set to a concrete origin in production');
+  }
+  return configured ?? '*';
+}
+
+const corsOrigin = resolveCorsOrigin();
 app.use(
   '/api/*',
   cors({
     origin: corsOrigin,
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Request-ID'],
   })
 );
+
+// ── API key enforcement hook ──────────────────────────────────────────────────
+function resolveApiKey(): string | null {
+  const configured = process.env.API_KEY;
+  if (process.env.NODE_ENV === 'production' && !configured) {
+    throw new Error('API_KEY must be set in production');
+  }
+  return configured ?? null;
+}
+
+const apiKey = resolveApiKey();
+app.use('/api/*', async (c, next) => {
+  if (!apiKey) {
+    await next();
+    return;
+  }
+
+  const authorization = c.req.header('authorization');
+  const bearer = authorization?.startsWith('Bearer ')
+    ? authorization.slice('Bearer '.length)
+    : null;
+  const provided = c.req.header('x-api-key') ?? bearer;
+
+  // TODO: Replace this placeholder comparison with rotated key validation.
+  if (provided !== apiKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  await next();
+  return;
+});
 
 // ── In-flight request tracking (for graceful shutdown) ─────────────────────────
 let activeRequests = 0;
@@ -54,14 +106,11 @@ app.use('*', async (c, next) => {
   const start = performance.now();
   await next();
   const durationMs = Math.round((performance.now() - start) * 100) / 100;
-  const forwarded = c.req.raw.headers.get('x-forwarded-for');
-  const ip =
-    (forwarded ? forwarded.split(',')[0]!.trim() : null) ??
-    c.req.raw.headers.get('x-real-ip') ??
-    'unknown';
+  const ip = getClientIp(c.req.raw.headers);
   log({
     level: 'info',
     event: 'request',
+    requestId: getRequestId(c.req.raw),
     method: c.req.method,
     path: new URL(c.req.url).pathname,
     status: c.res.status,

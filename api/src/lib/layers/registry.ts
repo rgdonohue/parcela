@@ -3,6 +3,7 @@ import type { Database } from 'duckdb';
 import type { FieldType } from '../../../../shared/types/geo';
 import { LAYER_SCHEMAS } from '../../../../shared/types/geo';
 import { getConnection, query } from '../db/init';
+import { log } from '../logger';
 
 interface ManifestLayerEntry {
   featureCount?: number;
@@ -16,6 +17,7 @@ interface ManifestShape {
 }
 
 const INTERNAL_FIELDS = new Set(['geom_4326', 'geom_utm13', 'geometry']);
+const LAYER_VALIDATION_TABLE = '__layer_validation';
 
 const VIRTUAL_FIELDS: Record<string, string[]> = {
   zoning_districts: ['allows_residential', 'allows_commercial'],
@@ -30,6 +32,7 @@ export interface RuntimeLayerInfo {
   queryableFields: string[];
   featureCount: number | null;
   isLoaded: boolean;
+  isValidated?: boolean;
   source?: string;
 }
 
@@ -38,6 +41,7 @@ export interface LayerSummary {
   geometryType: string;
   schemaFields: string[];
   isLoaded: boolean;
+  isValidated?: boolean;
   loadedFields: string[];
   featureCount: number | null;
   description?: string;
@@ -84,6 +88,41 @@ async function describeLoadedFields(
   }
 }
 
+async function listDuckDbTables(db: Database): Promise<Set<string>> {
+  const conn = getConnection(db);
+  try {
+    const rows = await query<{ table_name: string }>(
+      conn,
+      `
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'main'
+          AND table_type = 'BASE TABLE'
+      `
+    );
+    return new Set(rows.map((row) => row.table_name));
+  } finally {
+    const closable = conn as unknown as { close?: () => void };
+    closable.close?.();
+  }
+}
+
+async function getLayerValidationStatuses(db: Database): Promise<Map<string, boolean>> {
+  const conn = getConnection(db);
+  try {
+    const rows = await query<{ layer_name: string; is_validated: boolean }>(
+      conn,
+      `SELECT layer_name, is_validated FROM "${LAYER_VALIDATION_TABLE}"`
+    );
+    return new Map(rows.map((row) => [row.layer_name, Boolean(row.is_validated)]));
+  } catch {
+    return new Map();
+  } finally {
+    const closable = conn as unknown as { close?: () => void };
+    closable.close?.();
+  }
+}
+
 function unique(values: string[]): string[] {
   return Array.from(new Set(values)).sort();
 }
@@ -106,6 +145,32 @@ export async function buildLayerRegistry(
   const manifestLayers = manifest.layers ?? {};
   const layers: Record<string, RuntimeLayerInfo> = {};
   const layerNames = Object.keys(LAYER_SCHEMAS);
+  const actualTables = await listDuckDbTables(db);
+  actualTables.delete(LAYER_VALIDATION_TABLE);
+  const validationStatuses = await getLayerValidationStatuses(db);
+  const manifestLayerNames = new Set(Object.keys(manifestLayers));
+
+  for (const manifestLayerName of manifestLayerNames) {
+    if (!actualTables.has(manifestLayerName)) {
+      log({
+        level: 'warn',
+        event: 'layer_registry.manifest_without_table',
+        layer: manifestLayerName,
+        manifestPath,
+      });
+    }
+  }
+
+  for (const tableName of actualTables) {
+    if (!manifestLayerNames.has(tableName)) {
+      log({
+        level: 'warn',
+        event: 'layer_registry.table_without_manifest',
+        layer: tableName,
+        manifestPath,
+      });
+    }
+  }
 
   for (const layerName of layerNames) {
     const schema = LAYER_SCHEMAS[layerName];
@@ -113,7 +178,7 @@ export async function buildLayerRegistry(
       continue;
     }
     const manifestEntry = manifestLayers[layerName];
-    const isLoaded = Boolean(manifestEntry);
+    const isLoaded = actualTables.has(layerName);
     const describedFields = isLoaded
       ? await describeLoadedFields(db, layerName)
       : [];
@@ -140,6 +205,7 @@ export async function buildLayerRegistry(
           ? manifestEntry.featureCount
           : null,
       isLoaded,
+      isValidated: validationStatuses.get(layerName) ?? false,
       source: manifestEntry?.source,
     };
   }
@@ -158,11 +224,13 @@ export async function buildLayerRegistry(
 
 export function getLayerSummaries(registry: LayerRegistry): LayerSummary[] {
   return Object.values(registry.layers)
+    .filter((layer) => layer.isLoaded)
     .map((layer) => ({
       name: layer.name,
       geometryType: layer.geometryType,
       schemaFields: Object.keys(layer.schemaFields),
       isLoaded: layer.isLoaded,
+      isValidated: layer.isValidated,
       loadedFields: layer.loadedFields,
       featureCount: layer.featureCount,
       description: layer.description,

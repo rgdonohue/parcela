@@ -6,6 +6,7 @@
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { validateQuery } from '../lib/orchestrator/validator';
 import type { LayerRegistry } from '../lib/layers/registry';
 import type { Database } from 'duckdb';
@@ -50,6 +51,13 @@ function buildValidationSuggestions(layerRegistryValue: LayerRegistry): string[]
     'Check field names from GET /api/layers',
     'Temporal queries are not supported yet',
   ];
+}
+
+function formatZodIssues(error: z.ZodError): string[] {
+  return error.issues.map((issue) => {
+    const path = issue.path.length > 0 ? `${issue.path.join('.')}: ` : '';
+    return `${path}${issue.message}`;
+  });
 }
 
 const queryRoute = new Hono();
@@ -118,11 +126,11 @@ queryRoute.post('/', async (c) => {
     });
   } catch (error) {
     if (error instanceof Error) {
-      if (error.name === 'ZodError') {
+      if (error instanceof z.ZodError) {
         return c.json(
           {
             error: 'Invalid query payload',
-            details: error.message,
+            details: formatZodIssues(error),
             expected: 'POST { "query": StructuredQuery }',
           },
           400

@@ -3,6 +3,15 @@ import { join } from 'path';
 import { existsSync, readdirSync } from 'fs';
 import type { LayerName } from '../../../../shared/types/geo';
 import { LAYER_SCHEMAS } from '../../../../shared/types/geo';
+import { log } from '../logger';
+
+const LAYER_VALIDATION_TABLE = '__layer_validation';
+const NEW_MEXICO_BOUNDS = {
+  minX: -109.05,
+  maxX: -103.0,
+  minY: 31.33,
+  maxY: 37.0,
+};
 
 /**
  * Initialize DuckDB database with spatial extension and load layers
@@ -25,31 +34,132 @@ export async function initDatabase(
       // Get connection (connect() doesn't take a callback)
       const conn = db.connect();
 
-      // Install and load spatial extension
-      conn.exec('INSTALL spatial;', (err: DuckDbError | null) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        conn.exec('LOAD spatial;', (err: DuckDbError | null) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          // Auto-load all available parquet files
+      ensureSpatialExtension(conn)
+        .then(() => ensureLayerValidationTable(conn))
+        .then(() =>
           loadAllLayers(conn, dataDir)
-            .then(() => resolve(db))
             .catch((loadErr) => {
               console.warn('Warning: Some layers failed to load:', loadErr);
               // Still resolve - partial data is better than none
-              resolve(db);
-            });
+            })
+            .then(() => resolve(db))
+        )
+        .catch((loadErr) => {
+          reject(loadErr);
         });
-      });
     });
   });
+}
+
+function exec(conn: Connection, sql: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    conn.exec(sql, (err: DuckDbError | null) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function ensureSpatialExtension(conn: Connection): Promise<void> {
+  try {
+    await exec(conn, 'LOAD spatial;');
+  } catch {
+    await exec(conn, 'INSTALL spatial;');
+    await exec(conn, 'LOAD spatial;');
+  }
+}
+
+function ensureLayerValidationTable(conn: Connection): Promise<void> {
+  return exec(
+    conn,
+    `
+      CREATE TABLE IF NOT EXISTS "${LAYER_VALIDATION_TABLE}" (
+        layer_name VARCHAR PRIMARY KEY,
+        is_validated BOOLEAN,
+        reason VARCHAR
+      );
+    `
+  );
+}
+
+async function recordLayerValidation(
+  conn: Connection,
+  layerName: string,
+  isValidated: boolean,
+  reason: string
+): Promise<void> {
+  const escapedReason = reason.replace(/'/g, "''");
+  await exec(
+    conn,
+    `
+      DELETE FROM "${LAYER_VALIDATION_TABLE}" WHERE layer_name = '${layerName.replace(/'/g, "''")}';
+      INSERT INTO "${LAYER_VALIDATION_TABLE}" VALUES ('${layerName.replace(/'/g, "''")}', ${isValidated ? 'TRUE' : 'FALSE'}, '${escapedReason}');
+    `
+  );
+}
+
+async function validateLayerBounds(conn: Connection, layerName: string): Promise<boolean> {
+  try {
+    const rows = await query<{
+      min_x: number | null;
+      min_y: number | null;
+      max_x: number | null;
+      max_y: number | null;
+    }>(
+      conn,
+      `
+        SELECT
+          ST_XMin(ST_Extent_Agg(geom_4326)) AS min_x,
+          ST_YMin(ST_Extent_Agg(geom_4326)) AS min_y,
+          ST_XMax(ST_Extent_Agg(geom_4326)) AS max_x,
+          ST_YMax(ST_Extent_Agg(geom_4326)) AS max_y
+        FROM "${layerName}"
+      `
+    );
+    const bounds = rows[0];
+    const isValidated = Boolean(
+      bounds &&
+        bounds.min_x !== null &&
+        bounds.max_x !== null &&
+        bounds.min_y !== null &&
+        bounds.max_y !== null &&
+        bounds.min_x >= NEW_MEXICO_BOUNDS.minX &&
+        bounds.max_x <= NEW_MEXICO_BOUNDS.maxX &&
+        bounds.min_y >= NEW_MEXICO_BOUNDS.minY &&
+        bounds.max_y <= NEW_MEXICO_BOUNDS.maxY
+    );
+
+    if (!isValidated) {
+      log({
+        level: 'warn',
+        event: 'layer.crs_bounds_failed',
+        layer: layerName,
+        bounds,
+        expectedBounds: NEW_MEXICO_BOUNDS,
+      });
+    }
+
+    await recordLayerValidation(
+      conn,
+      layerName,
+      isValidated,
+      isValidated ? 'bounds within New Mexico' : 'bounds outside New Mexico or unavailable'
+    );
+    return isValidated;
+  } catch (error) {
+    log({
+      level: 'warn',
+      event: 'layer.crs_bounds_failed',
+      layer: layerName,
+      error: error instanceof Error ? error.message : 'unknown',
+      expectedBounds: NEW_MEXICO_BOUNDS,
+    });
+    await recordLayerValidation(conn, layerName, false, 'bounds validation query failed');
+    return false;
+  }
 }
 
 /**
@@ -160,7 +270,8 @@ async function loadParquetLayer(
               console.log(`    ${count} features`);
 
               // Create spatial indexes for faster spatial queries
-              createSpatialIndexes(conn, layerName)
+              validateLayerBounds(conn, layerName)
+                .then(() => createSpatialIndexes(conn, layerName))
                 .then(() => resolve())
                 .catch((indexErr) => {
                   console.warn(`    Warning: spatial index creation failed for ${layerName}:`, indexErr);
@@ -296,4 +407,3 @@ export function query<T = unknown>(
     );
   });
 }
-

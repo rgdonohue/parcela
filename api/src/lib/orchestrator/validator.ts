@@ -14,6 +14,8 @@ import type {
   TemporalQuery,
 } from '../../../../shared/types/query';
 
+export const MAX_DISTANCE_METERS = 50_000;
+
 // ============================================================================
 // Attribute Filter Schema
 // ============================================================================
@@ -43,8 +45,20 @@ export const spatialFilterSchema: z.ZodType<SpatialFilter> = z.object({
   ]),
   targetLayer: z.string().min(1),
   targetFilter: z.array(attributeFilterSchema).optional(),
-  distance: z.number().positive().optional(),
+  distance: z
+    .number()
+    .positive()
+    .max(MAX_DISTANCE_METERS, `distance must be <= ${MAX_DISTANCE_METERS} meters`)
+    .optional(),
   limit: z.number().int().positive().optional(),
+}).superRefine((filter, ctx) => {
+  if (filter.op === 'within_distance' && filter.distance === undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['distance'],
+      message: 'within_distance spatial filters require distance',
+    });
+  }
 });
 
 // ============================================================================
@@ -130,4 +144,3 @@ export function safeValidateQuery(
   }
   return { success: false, error: result.error };
 }
-
