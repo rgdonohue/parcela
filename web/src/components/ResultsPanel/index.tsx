@@ -331,9 +331,10 @@ function featuresEqual(
 }
 
 type FieldLabelMap = Record<string, Record<string, { en: string; es: string }>>;
+const fieldLabelsByLayer = fieldLabels as unknown as FieldLabelMap;
 
 function localizeKey(layer: string, key: string, lang: 'en' | 'es'): string {
-  const layerMap = (fieldLabels as FieldLabelMap)[layer];
+  const layerMap = fieldLabelsByLayer[layer];
   const label = layerMap?.[key];
   if (label) return label[lang];
   return key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());

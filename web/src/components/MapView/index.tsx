@@ -99,9 +99,11 @@ export function MapView({
   choroplethConfig,
   queryLayerName,
 }: MapViewProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; }, [t]);
+  const queryLayerNameRef = useRef(queryLayerName);
+  useEffect(() => { queryLayerNameRef.current = queryLayerName; }, [queryLayerName]);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -305,7 +307,7 @@ export function MapView({
       }
       // If we still have nothing, show the humanized layer name as a last resort
       if (!rawName && !rawDesc) {
-        html += `<div class="tooltip-row tooltip-desc">${escapeHtml(humanize(queryLayerName ?? 'feature'))}</div>`;
+        html += `<div class="tooltip-row tooltip-desc">${escapeHtml(humanize(queryLayerNameRef.current ?? 'feature'))}</div>`;
       }
       html += '</div>';
 

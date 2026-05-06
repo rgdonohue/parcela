@@ -23,6 +23,7 @@ export function ChatPanel({
   };
   const [inputValue, setInputValue] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const displayedElapsedSeconds = isLoading ? elapsedSeconds : 0;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -36,7 +37,6 @@ export function ChatPanel({
 
   useEffect(() => {
     if (!isLoading) {
-      setElapsedSeconds(0);
       return;
     }
     const start = performance.now();
@@ -169,13 +169,13 @@ export function ChatPanel({
                 <span>.</span>
               </span>
               <span className="loading-elapsed" aria-hidden="true">
-                {elapsedSeconds > 0
-                  ? t('chat.processingQuerySeconds', { seconds: elapsedSeconds })
+                {displayedElapsedSeconds > 0
+                  ? t('chat.processingQuerySeconds', { seconds: displayedElapsedSeconds })
                   : t('chat.processingQuery')}
               </span>
               <span className="sr-only">
-                {elapsedSeconds > 0
-                  ? t('chat.processingQuerySeconds', { seconds: elapsedSeconds })
+                {displayedElapsedSeconds > 0
+                  ? t('chat.processingQuerySeconds', { seconds: displayedElapsedSeconds })
                   : t('chat.processingQuery')}
               </span>
             </div>
