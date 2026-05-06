@@ -27,6 +27,8 @@ vi.mock('../src/lib/api', () => ({
 }));
 
 const mockResponse: ChatResponse = {
+  conversationId: '11111111-1111-4111-8111-111111111111',
+  conversationTurn: 1,
   query: { selectLayer: 'parcels', attributeFilters: [{ field: 'assessed_value', op: 'gt', value: 500000 }] },
   result: {
     type: 'FeatureCollection',
@@ -72,7 +74,7 @@ describe('Chat store', () => {
     expect(state.isLoading).toBe(false);
     expect(state.features).toHaveLength(0);
     expect(state.currentQuery).toBeNull();
-    expect(state.conversationContext).toBeNull();
+    expect(state.conversationId).toBeNull();
     expect(state.showResults).toBe(false);
   });
 
@@ -112,6 +114,7 @@ describe('Chat store', () => {
     expect(state.currentQuery?.selectLayer).toBe('parcels');
     expect(state.showResults).toBe(true);
     expect(state.isLoading).toBe(false);
+    expect(state.conversationId).toBe('11111111-1111-4111-8111-111111111111');
   });
 
   it('keeps only the newest concurrent sendMessage response', async () => {
@@ -161,17 +164,17 @@ describe('Chat store', () => {
     ]);
   });
 
-  it('tracks conversation context after successful query', async () => {
+  it('echoes returned conversation id on subsequent queries', async () => {
     const { sendChatMessage } = await import('../src/lib/api');
     vi.mocked(sendChatMessage).mockResolvedValue(mockResponse);
 
     await getState().sendMessage('Show high-value parcels');
+    await getState().sendMessage('Filter those');
 
-    const ctx = getState().conversationContext;
-    expect(ctx).not.toBeNull();
-    expect(ctx!.previousLayer).toBe('parcels');
-    expect(ctx!.previousResultCount).toBe(1);
-    expect(ctx!.previousQuery.selectLayer).toBe('parcels');
+    expect(vi.mocked(sendChatMessage).mock.calls[0]?.[1]).toBeUndefined();
+    expect(vi.mocked(sendChatMessage).mock.calls[1]?.[1]).toBe(
+      '11111111-1111-4111-8111-111111111111'
+    );
   });
 
   it('handles API errors gracefully', async () => {
@@ -189,7 +192,7 @@ describe('Chat store', () => {
     expect(state.isLoading).toBe(false);
     // Should not update features or context on error
     expect(state.features).toHaveLength(0);
-    expect(state.conversationContext).toBeNull();
+    expect(state.conversationId).toBeNull();
   });
 
   it('formats array error details into readable text', async () => {
@@ -271,7 +274,7 @@ describe('Chat store', () => {
     expect(state.messages).toHaveLength(0);
     expect(state.features).toHaveLength(0);
     expect(state.currentQuery).toBeNull();
-    expect(state.conversationContext).toBeNull();
+    expect(state.conversationId).toBeNull();
     expect(state.showResults).toBe(false);
   });
 });

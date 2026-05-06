@@ -17,7 +17,6 @@ import type { LayerRegistry } from '../lib/layers/registry';
 import type { Database } from 'duckdb';
 import type { ParseResult, ConversationContext } from '../lib/orchestrator/parser';
 import type { ChatRequest, ChatResponse } from '../../../shared/types/api';
-import { structuredQuerySchema } from '../lib/orchestrator/validator';
 import {
   getQuerySourceLayers,
 } from '../lib/orchestrator/query-grounding';
@@ -29,18 +28,17 @@ import { prepareQuery, executeQuery } from '../lib/utils/query-executor';
 import { generateExplanation, generateEquityExplanation } from '../lib/utils/explanation';
 import { log } from '../lib/logger';
 import { getRequestId } from '../lib/request-id';
+import {
+  createSession,
+  getSession,
+  updateSession,
+} from '../lib/conversation/store';
 
 // ── Request validation schema ─────────────────────────────────────────────────
 const chatBodySchema = z.object({
   message: z.string().min(1, 'message must be a non-empty string'),
   lang: z.enum(['en', 'es']).optional(),
-  context: z
-    .object({
-      previousQuery: structuredQuerySchema,
-      previousLayer: z.string(),
-      previousResultCount: z.number(),
-    })
-    .optional(),
+  conversationId: z.string().optional(),
 }) satisfies z.ZodType<ChatRequest>;
 
 let dbInstance: Database | null = null;
@@ -229,7 +227,36 @@ chatRoute.post('/', async (c) => {
     const lang: 'en' | 'es' = body.lang
       ?? (acceptLang.toLowerCase().startsWith('es') ? 'es' : 'en');
 
-    const conversationContext: ConversationContext | null = body.context ?? null;
+    let conversationId: string | undefined;
+    let conversationTurn = 0;
+    let conversationContext: ConversationContext | null = null;
+    let statelessConversation = false;
+    const requestedSession = body.conversationId ? getSession(body.conversationId) : null;
+
+    if (requestedSession) {
+      conversationId = body.conversationId;
+      conversationTurn = requestedSession.turnCount;
+      if (requestedSession.previousQuery) {
+        conversationContext = {
+          previousQuery: requestedSession.previousQuery,
+          previousLayer: requestedSession.previousQuery.selectLayer,
+        };
+      }
+    } else {
+      const createdConversationId = createSession();
+      if (createdConversationId) {
+        conversationId = createdConversationId;
+      } else {
+        statelessConversation = true;
+        log({
+          level: 'warn',
+          event: 'chat.conversation_stateless',
+          requestId,
+          conversationStoreFull: true,
+        });
+      }
+    }
+
     const availableLayers = layerRegistry.loadedLayerNames;
     const grounding = assessGroundingRequest(body.message, availableLayers);
     if (grounding.disambiguationPrompt) {
@@ -398,8 +425,20 @@ chatRoute.post('/', async (c) => {
     });
 
     const explanation = equityNarrative ?? deterministicExplanation;
+    if (conversationId) {
+      const updatedSession = updateSession(
+        conversationId,
+        prepared.executableQuery,
+        explanation
+      );
+      conversationTurn = updatedSession?.turnCount ?? conversationTurn;
+    } else if (statelessConversation) {
+      conversationTurn = 0;
+    }
 
     const response: ChatResponse = {
+      ...(conversationId ? { conversationId } : {}),
+      conversationTurn,
       query: prepared.executableQuery,
       result: result as ChatResponse['result'],
       summary: deterministicExplanation,

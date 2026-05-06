@@ -27,7 +27,6 @@ export interface ParseResult {
 export interface ConversationContext {
   previousQuery: StructuredQuery;
   previousLayer: string;
-  previousResultCount: number;
 }
 
 /**
@@ -152,7 +151,6 @@ export class IntentParser {
       ? `
 Conversation context (previous query):
 - Layer: ${context.previousLayer}
-- Result: ${context.previousResultCount} features
 - Previous query: ${JSON.stringify(context.previousQuery)}
 
 If the user's new query refers to the previous results (e.g. "filter those", "now just show...", "of those which...", "narrow that down"), build on the previous query by adding or modifying filters. Keep the same selectLayer unless the user explicitly asks for a different layer.

@@ -3,7 +3,6 @@
  */
 
 import type {
-  ChatConversationContext,
   ChatRequest,
   ChatResponse,
   QueryRequest,
@@ -138,17 +137,17 @@ async function apiFetch<T>(
 }
 
 /**
- * Send a natural language chat message, optionally with conversation context
- * for multi-turn refinement ("filter those to...", "now show just...").
+ * Send a natural language chat message, optionally with a server-owned
+ * conversation id for multi-turn refinement.
  */
 export async function sendChatMessage(
   message: string,
-  context?: ChatConversationContext,
+  conversationId?: string,
   lang: 'en' | 'es' = 'en'
 ): Promise<ChatResponse> {
   const request: ChatRequest = {
     message,
-    context,
+    conversationId,
     lang,
   };
 

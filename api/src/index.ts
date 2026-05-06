@@ -27,6 +27,7 @@ import {
 import { log } from './lib/logger';
 import { createLLMClient } from './lib/llm';
 import { getRequestId, setRequestId } from './lib/request-id';
+import { stopConversationPruneInterval } from './lib/conversation/store';
 import type { Database } from 'duckdb';
 
 const app = new Hono();
@@ -168,6 +169,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // Close DuckDB.
   const closable = dbForShutdown as unknown as { close?: () => void };
   closable?.close?.();
+  stopConversationPruneInterval();
 
   console.log('Shutdown complete');
   process.exit(0);

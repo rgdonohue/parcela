@@ -11,19 +11,11 @@ import i18n from '../i18n';
 import { sendChatMessage, ApiClientError } from '../lib/api';
 import type {
   ChatMessage,
-  ChatConversationContext,
   ChatResponse,
   GroundingInfo,
   QueryMetadata,
   StructuredQuery,
 } from '../types/api';
-
-/**
- * Conversation context sent to the API for multi-turn refinement.
- * Summarizes the previous query so the LLM can resolve
- * references like "those", "filter further", "just the Southside".
- */
-export type ConversationContext = ChatConversationContext;
 
 interface ChatState {
   // ── Chat ──
@@ -42,8 +34,8 @@ interface ChatState {
   selectedFeature: Feature<Geometry, Record<string, unknown>> | null;
   showResults: boolean;
 
-  // ── Multi-turn context ──
-  conversationContext: ConversationContext | null;
+  // ── Server-owned conversation session ──
+  conversationId: string | null;
   requestGeneration: number;
 
   // ── Actions ──
@@ -90,7 +82,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   equityNarrative: null,
   selectedFeature: null,
   showResults: false,
-  conversationContext: null,
+  conversationId: null,
   requestGeneration: 0,
 
   // ── Actions ──
@@ -110,13 +102,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       requestGeneration: generation,
     }));
 
-    const { conversationContext } = get();
+    const { conversationId } = get();
 
     try {
       const lang: 'en' | 'es' = i18n.language.startsWith('es') ? 'es' : 'en';
       const response: ChatResponse = await sendChatMessage(
         content,
-        conversationContext ?? undefined,
+        conversationId ?? undefined,
         lang
       );
 
@@ -147,12 +139,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         showResults: true,
         selectedFeature: null,
         isLoading: false,
-        // Update conversation context for next turn
-        conversationContext: {
-          previousQuery: response.query,
-          previousLayer: response.query.selectLayer,
-          previousResultCount: response.result.features.length,
-        },
+        conversationId: response.conversationId ?? null,
       });
     } catch (error) {
       if (get().requestGeneration !== generation) {
@@ -215,7 +202,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       equityNarrative: null,
       selectedFeature: null,
       showResults: false,
-      conversationContext: null,
+      conversationId: null,
       requestGeneration: get().requestGeneration + 1,
     });
   },

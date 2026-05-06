@@ -1,4 +1,3 @@
-import type { Feature, Geometry } from 'geojson';
 import type { StructuredQuery } from './query';
 
 export interface GroundingInfo {
@@ -30,23 +29,19 @@ export interface QueryMetadata {
 
 export interface QueryResult {
   type: 'FeatureCollection';
-  features: Feature<Geometry, Record<string, unknown>>[];
+  features: GeoJSON.Feature<GeoJSON.Geometry, Record<string, unknown>>[];
   metadata?: QueryMetadata;
-}
-
-export interface ChatConversationContext {
-  previousQuery: StructuredQuery;
-  previousLayer: string;
-  previousResultCount: number;
 }
 
 export interface ChatRequest {
   message: string;
   lang?: 'en' | 'es';
-  context?: ChatConversationContext;
+  conversationId?: string;
 }
 
 export interface ChatResponse {
+  conversationId?: string;
+  conversationTurn: number;
   query: StructuredQuery;
   result: QueryResult;
   summary: string;

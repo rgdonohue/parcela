@@ -1,0 +1,7 @@
+{
+  "name": "parcela-shared",
+  "private": true,
+  "scripts": {
+    "typecheck": "../api/node_modules/.bin/tsc --noEmit -p tsconfig.json"
+  }
+}

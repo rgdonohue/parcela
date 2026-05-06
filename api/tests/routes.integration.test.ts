@@ -10,6 +10,7 @@ import queryRoute, {
 import chatRoute, {
   setDatabase as setChatDatabase,
   setLayerRegistry as setChatLayerRegistry,
+  setLLMClientForTests,
 } from '../src/routes/chat';
 import templatesRoute, {
   setAvailableLayers as setTemplateAvailableLayers,
@@ -19,6 +20,9 @@ import {
   buildLayerRegistry,
   type LayerRegistry,
 } from '../src/lib/layers/registry';
+import type { LLMClient } from '../src/lib/llm/types';
+import { __clearConversationSessionsForTests } from '../src/lib/conversation/store';
+import { clearAllCaches } from '../src/lib/cache';
 
 let app: Hono;
 let db: Database | null = null;
@@ -188,6 +192,102 @@ describe('/api/chat', () => {
     expect(body.error).toBe('Unsupported request for current datasets');
     expect(body.grounding.status).toBe('unsupported');
     expect(body.grounding.missingLayers).toContain('eviction_filings');
+  });
+
+  it('uses server-owned conversation context on the second turn', async () => {
+    __clearConversationSessionsForTests();
+    clearAllCaches();
+    let parserCalls = 0;
+    const client: LLMClient = {
+      providerName: 'test-provider',
+      modelName: 'test-model',
+      complete: async (prompt: string) => {
+        if (prompt.includes('<user_query>')) {
+          parserCalls += 1;
+          if (parserCalls === 2) {
+            expect(prompt).toContain('Conversation context (previous query)');
+            expect(prompt).toContain('"selectLayer":"parcels"');
+            expect(prompt).not.toContain('"selectLayer":"parks"');
+          }
+          return JSON.stringify({ selectLayer: 'parcels', limit: 1 });
+        }
+        return 'Server-generated explanation.';
+      },
+    };
+    setLLMClientForTests(client);
+
+    const first = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'Show parcels' }),
+    });
+    const firstBody = (await first.json()) as {
+      conversationId?: string;
+      conversationTurn: number;
+    };
+
+    expect(first.status).toBe(200);
+    expect(firstBody.conversationId).toBeDefined();
+    expect(firstBody.conversationTurn).toBe(1);
+
+    const second = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Filter those',
+        conversationId: firstBody.conversationId,
+        context: {
+          previousQuery: { selectLayer: 'parks' },
+          previousLayer: 'parks',
+          previousResultCount: 999,
+        },
+      }),
+    });
+    const secondBody = (await second.json()) as {
+      conversationId?: string;
+      conversationTurn: number;
+    };
+
+    expect(second.status).toBe(200);
+    expect(secondBody.conversationId).toBe(firstBody.conversationId);
+    expect(secondBody.conversationTurn).toBe(2);
+    expect(parserCalls).toBe(2);
+  });
+
+  it('ignores client-provided previousQuery without a conversationId', async () => {
+    __clearConversationSessionsForTests();
+    clearAllCaches();
+    const client: LLMClient = {
+      providerName: 'test-provider',
+      modelName: 'test-model',
+      complete: async (prompt: string) => {
+        if (prompt.includes('<user_query>')) {
+          expect(prompt).not.toContain('Conversation context (previous query)');
+          expect(prompt).not.toContain('"selectLayer":"parks"');
+          return JSON.stringify({ selectLayer: 'parcels', limit: 1 });
+        }
+        return 'Server-generated explanation.';
+      },
+    };
+    setLLMClientForTests(client);
+
+    const response = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Show parcels',
+        previousQuery: { selectLayer: 'parks' },
+        context: {
+          previousQuery: { selectLayer: 'parks' },
+          previousLayer: 'parks',
+          previousResultCount: 999,
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { conversationId?: string };
+    expect(body.conversationId).toBeDefined();
   });
 });
 

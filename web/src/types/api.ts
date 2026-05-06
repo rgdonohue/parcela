@@ -4,7 +4,6 @@
 
 import type { StructuredQuery } from '../../../shared/types/query';
 import type {
-  ChatConversationContext as SharedChatConversationContext,
   ChatRequest as SharedChatRequest,
   ChatResponse as SharedChatResponse,
   GroundingInfo as SharedGroundingInfo,
@@ -38,8 +37,6 @@ export interface ChatMessage {
 export type QueryMetadata = SharedQueryMetadata;
 
 export type QueryResult = SharedQueryResult;
-
-export type ChatConversationContext = SharedChatConversationContext;
 
 export type ChatRequest = SharedChatRequest;
 
