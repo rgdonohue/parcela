@@ -4,9 +4,11 @@
 
 *Lee esto en [English](README.md).*
 
-Parcela es una interfaz de lenguaje natural para explorar datos espaciales sobre Santa Fe, Nuevo México. Escribe una pregunta como *"Muéstrame parcelas residenciales baldías dentro de 500 metros de una parada de autobús"* y verás los resultados en un mapa interactivo con una explicación en lenguaje natural.
+Parcela es una interfaz de lenguaje natural para explorar datos espaciales sobre Santa Fe, Nuevo México. Escribe una pregunta como *"Muéstrame parcelas residenciales dentro de 500 metros de una parada de autobús"* y verás los resultados en un mapa interactivo con una explicación en lenguaje natural.
 
-**[parcela.app](https://parcela.app)**
+![Parcela mostrando resultados de una consulta en español sobre un mapa de Santa Fe](docs/assets/parcela-spanish.png)
+
+Estado actual: prototipo avanzado / versión para revisión. Todavía no hay un despliegue público de producción documentado.
 
 ---
 
@@ -96,7 +98,7 @@ Si notas una traducción que no refleja el habla de Santa Fe, por favor abre un 
 | Frontend | React 19, TypeScript, Vite, MapLibre GL JS, Zustand, react-i18next |
 | Backend | Hono (TypeScript), Zod |
 | Base de datos | DuckDB con extensión espacial |
-| LLM | Ollama (local) o Together.ai/Groq (producción) |
+| LLM | Ollama (local) o Together.ai (producción) |
 | Despliegue | Railway/Fly.io (API), Vercel/Cloudflare Pages (frontend) |
 
 ---

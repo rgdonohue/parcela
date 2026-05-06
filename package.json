@@ -2,7 +2,15 @@
   "name": "parcela",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
+    "dev:api": "npm --prefix api run dev",
+    "dev:web": "npm --prefix web run dev",
+    "typecheck": "npm --prefix api run typecheck && npm --prefix web run typecheck && npm --prefix shared run typecheck",
+    "test": "npm --prefix api test -- --run && npm --prefix web test -- --run",
+    "lint": "npm --prefix api run lint && npm --prefix web run lint",
+    "build:web": "npm --prefix web run build",
+    "build:api": "npm --prefix api run build",
     "fetch-data": "cd api && npx tsx ../scripts/fetch-public-data.ts",
     "fetch-affordable-housing": "npx tsx scripts/fetch-affordable-housing-lihtc.ts",
     "prepare-data": "cd api && npx tsx scripts/prepare-data.ts --all"

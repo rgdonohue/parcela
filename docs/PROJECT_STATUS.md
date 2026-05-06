@@ -1,27 +1,29 @@
 # Project Status Report
 
-**Date:** April 11, 2026  
-**Phase:** Post-build — hardening, user testing, and deployment prep  
-**Prior status:** February 23, 2026 (grounding hardening)
+**Date:** May 6, 2026  
+**Phase:** Late prototype / review build  
+**Source of truth:** current workspace plus `api/data/manifest.json`
 
 ## Current Summary
 
-The initial 8-week build and a March 2026 evaluation are complete. 14 of 15 evaluation recommendations have been addressed. The system runs with a full NL-to-map pipeline, 14 loaded spatial layers, 71+ tests (37 API + 34 frontend), and a CI/CD pipeline with Docker support.
+Parcela has a working local API, web app, data manifest, Docker build, and test suite. The current review build supports natural-language spatial queries, server-owned multi-turn context, direct structured queries, map rendering, exports, bilingual UI strings, and LLM-backed explanations with deterministic fallback.
 
-The project is transitioning from "build" to "ship" — the remaining work is equity explanations, user testing, and production deployment.
+The next phase is production readiness: deploy the API/web app, automate data refreshes, validate real user workflows, and replace placeholder operational controls with production-grade secret/key management.
 
 ## System Snapshot
 
 | Component | State |
 |-----------|-------|
-| Spatial layers loaded | 14 (109K+ features) |
-| API tests passing | 37+ |
-| Frontend tests passing | 34 |
-| CI pipeline | Lint → typecheck → test → Docker build |
-| LLM providers | Ollama (dev), Together.ai (prod) |
-| State management | Zustand with multi-turn context |
+| Spatial layers loaded | 14 |
+| Total loaded features | 109,417 |
+| API tests passing | 95 |
+| Web tests passing | 37 |
+| Shared typecheck | Passing |
+| CI pipeline | API lint/typecheck/test/shared typecheck, web lint/typecheck/test/build, Docker build |
+| LLM providers | Ollama local, Together.ai hosted |
+| Conversation state | Server-owned in-memory sessions, 2-hour TTL, 1000-session cap |
 | Export formats | GeoJSON, CSV |
-| Accessibility | ARIA labels, keyboard nav, screen reader |
+| Production deployment | Pending |
 
 ## Loaded Layers
 
@@ -30,82 +32,55 @@ The project is transitioning from "build" to "ship" — the remaining work is eq
 | parcels | 63,439 | Polygon |
 | building_footprints | 42,630 | Polygon |
 | zoning_districts | 851 | Polygon |
+| short_term_rentals | 897 | Point |
+| bikeways | 536 | LineString |
+| transit_access | 447 | Point |
 | flood_zones | 227 | Polygon |
+| hydrology | 109 | LineString |
 | neighborhoods | 106 | Polygon |
 | parks | 77 | Polygon |
 | census_tracts | 57 | Polygon |
+| affordable_housing_units | 35 | Polygon / Point |
 | historic_districts | 5 | Polygon |
 | city_limits | 1 | Polygon |
-| short_term_rentals | 897 | Point |
-| transit_access | 447 | Point |
-| affordable_housing_units | 35 | Point |
-| bikeways | 536 | LineString |
-| hydrology | 109 | LineString |
 
-**Total: 109,417 features across 14 layers**
+## Completed Since April Assessment
 
-## Pending Layers
-
-| Layer | Blocker | Priority |
-|-------|---------|----------|
-| school_zones | Need attendance boundary polygons from SFPS | Medium |
-| wildfire_risk | USFS raster needs vectorization | Medium |
-| vacancy_status | Multi-source derivation (assessor + USPS) | Deferred |
-| eviction_filings | Privacy-sensitive, needs data agreement | Deferred |
-
-## What Changed Since Last Status (Feb 23)
-
-- **Affordable housing loaded** — HUD LIHTC data fetched, processed, 35 features (uncommitted)
-- **Frontend tests added** — 34 tests for store, ChatPanel, ResultsPanel
-- **Accessibility improvements** — ARIA labels, keyboard navigation, screen reader support
-- **GeoJSON/CSV export** — Implemented in ResultsPanel with query metadata
-- **March evaluation completed** — 15 recommendations; 14 addressed
-- **April assessment completed** — Full project review and forward plan
-
-## Evaluation Scorecard
-
-| # | Recommendation | Status |
-|---|---------------|--------|
-| 1 | Fix type mismatches | Done |
-| 2 | Spatial indexes | Done |
-| 3 | Extract duplicated code | Done |
-| 4 | Env-based API URL | Done |
-| 5 | LLM timeout | Done |
-| 6 | LLM equity explanations | **Partial** |
-| 7 | Integration tests | Done |
-| 8 | Dockerfile + CI | Done |
-| 9 | .env.example | Done |
-| 10 | Production LLM client | Done |
-| 11 | Multi-turn conversation | Done |
-| 12 | Frontend state (Zustand) | Done |
-| 13 | Accessibility | Done |
-| 14 | Better example queries | Done |
-| 15 | Export functionality | Done |
+- Added server-owned conversation sessions; clients now send `conversationId` instead of prior query state.
+- Added shared package metadata and typecheck for `shared/`.
+- Current local validation passes: API typecheck, API tests, web typecheck, web tests, shared typecheck.
+- Updated current-state docs and moved the internal remediation review log to `docs/archive/`.
+- Removed template/macOS artifacts from the review surface.
 
 ## Known Gaps
 
-1. **Equity explanations fall back to deterministic** — `generateEquityExplanation()` exists but doesn't consistently call the LLM. This is the project's core differentiator
-2. **No production deployment yet** — Dockerfile works, no hosting configured
-3. **No auth/rate limiting** — Required before public access
-4. **No graceful shutdown** — Risk for containerized deploys
-5. **No real user testing** — All testing is developer-driven
-6. **VARCHAR numeric fields** — Handled via TRY_CAST workaround, should be fixed at data prep
+1. **No public deployment yet** — Docker build exists, but hosted API/web infrastructure is not documented as live.
+2. **Operational key handling is basic** — production requires `API_KEY`, but rotated keys or user auth are not implemented.
+3. **Data refresh is manual** — fetch/prepare scripts exist, but there is no scheduled refresh or freshness SLA.
+4. **Pending data layers** — school zones, wildfire risk, vacancy, and eviction layers remain unavailable.
+5. **User validation is still needed** — tests cover implementation behavior, not whether housing advocates/planners can reliably answer their real questions.
+6. **Historical docs lag** — older assessment/build-plan docs remain useful context but are no longer exact current-state references.
 
 ## Validation Snapshot
 
-- `api`: typecheck passes
-- `api`: lint passes
-- `api`: tests pass (37+)
-- `web`: typecheck passes
-- `web`: lint passes
-- `web`: tests pass (34)
+Run from the repo root:
+
+```bash
+npm --prefix api run typecheck
+npm --prefix api test -- --run
+npm --prefix web run typecheck
+npm --prefix web test -- --run
+npm --prefix shared run typecheck
+npm run lint
+npm --prefix web run build
+```
+
+Latest local result: all commands passed.
 
 ## Immediate Next Work
 
-1. Commit affordable housing layer work
-2. Wire up LLM-driven equity explanations
-3. Recruit 3-5 real users for testing
-4. Add rate limiting and auth middleware
-5. Deploy to public URL
-
-See `BUILD_PLAN.md` for the full forward-looking action plan with detailed tasks.
+1. Decide the production hosting target and environment contract.
+2. Add production-grade API key rotation or a real auth layer.
+3. Add data freshness metadata and a repeatable refresh workflow.
+4. Run guided user testing with 3-5 housing/planning users.
+5. Prioritize the next data layer: school zones or wildfire risk.

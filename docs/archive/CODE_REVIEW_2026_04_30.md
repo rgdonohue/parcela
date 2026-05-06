@@ -132,3 +132,9 @@ Deferred:
 - Confirmed the choropleth debug `console.log` was already removed during Pass 2.
 - Updated the root data-fetch scripts that used `.catch(console.error)` so failures print the error and exit with status 1.
 - Verification: `api`: `npm run typecheck && npm test` passed, 88 tests. `web`: `npm run typecheck && npm test` passed, 37 tests.
+
+### Server-Owned Conversation State
+
+- Server-owned conversation state implemented. Client-provided previousQuery removed from schema. In-memory session store with 2-hour TTL and 1000-session cap.
+- Clients now send only `conversationId`; `/api/chat` returns `conversationId` and `conversationTurn` on successful responses.
+- Verification: `api`: `npm run typecheck && npm test` passed, 95 tests. `web`: `npm run typecheck && npm test` passed, 37 tests. `shared`: `npm run typecheck` passed.

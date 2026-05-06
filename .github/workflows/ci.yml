@@ -27,6 +27,9 @@ jobs:
       - name: Typecheck
         run: cd api && npx tsc --noEmit
 
+      - name: Shared typecheck
+        run: cd shared && npm run typecheck
+
       - name: Unit tests
         run: cd api && npx vitest run --reporter=verbose
 
@@ -49,6 +52,9 @@ jobs:
 
       - name: Typecheck
         run: cd web && npx tsc --noEmit
+
+      - name: Unit tests
+        run: cd web && npx vitest run --reporter=verbose
 
       - name: Build
         run: cd web && npm run build

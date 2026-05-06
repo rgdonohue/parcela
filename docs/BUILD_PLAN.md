@@ -18,7 +18,7 @@ The initial 8-week build (Nov 2025 - Feb 2026) delivered the core system. A stre
 | LLM Integration (Wk 4) | Ollama + Together.ai clients, IntentParser, confidence scoring | Done |
 | Frontend (Wk 5) | ChatPanel, MapView (MapLibre), ResultsPanel, API client | Done |
 | Orchestration (Wk 6) | End-to-end NL → map flow, caching, query grounding | Done |
-| Hardening (Wk 7) | 37+ API tests, 34 frontend tests, error handling, accessibility | Done |
+| Hardening (Wk 7) | API/web tests, error handling, accessibility | Done |
 | Deployment (Wk 8) | Dockerfile, CI pipeline, env config, README | Done |
 | Housing Focus (Wk 9) | STR/transit/flood/affordable housing layers, equity templates, choropleth, export | Done |
 
@@ -38,12 +38,12 @@ The infrastructure is built. The remaining work is about making the tool useful 
 
 **Why this matters:** Without equity-aware explanations, this is a generic spatial query tool. With them, it's an equity analysis platform that helps advocates, planners, and journalists understand what the data means for housing in Santa Fe.
 
-**Current state:** `generateEquityExplanation()` in `api/src/lib/utils/explanation.ts` exists with layer-specific equity hints defined. It falls back to a deterministic template ("Found N features where...") instead of calling the LLM.
+**Current state:** `generateEquityExplanation()` in `api/src/lib/utils/explanation.ts` calls the configured LLM with layer-specific equity hints and result statistics, then falls back to deterministic text on failure or timeout. The remaining work is quality validation with real workflows.
 
 #### Action Items
 
-- [ ] **Wire up the LLM call in `generateEquityExplanation()`** — the equity hints per layer are already defined; construct a prompt that includes the query, result summary statistics, and the relevant equity context hints
-- [ ] **Add result-aware context to the prompt** — include feature count, value distributions (min/max/median of key numeric fields), spatial clustering description if applicable
+- [x] **Wire up the LLM call in `generateEquityExplanation()`** — the prompt includes the query, feature count, result statistics, and layer-specific equity context
+- [x] **Add result-aware context to the prompt** — numeric result statistics are included where available
 - [ ] **Test against the pre-built equity templates** — run each template query from `api/src/lib/templates/equity-queries.ts` and evaluate whether the explanations are accurate, useful, and appropriately contextualized
 - [ ] **Add explanation quality signal** — thumbs up/down in ResultsPanel that logs to a file or endpoint for review
 - [ ] **Set a fallback timeout** — if LLM explanation takes >5s, return the deterministic version; don't block the response

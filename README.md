@@ -2,377 +2,238 @@
 
 *Read this in [Español](README.es.md).*
 
-**Explore Santa Fe housing, land use, and equity — in plain English.**
+**Natural-language spatial analysis for Santa Fe housing, land use, and equity.**
 
-Parcela is a natural language interface for exploring spatial data about Santa Fe, New Mexico. Type a question like *"Show me vacant residential parcels within 500 meters of a bus stop"* and see the results on an interactive map with a plain-English explanation.
+Parcela lets users ask questions like *"Show me residential parcels within 500 meters of transit"* and inspect the results on a MapLibre map with a transparent structured query, exported GeoJSON/CSV, and an equity-aware explanation.
 
-**[parcela.app](https://parcela.app)**
+![Parcela showing English query results on a Santa Fe map](docs/assets/parcela-english.png)
 
----
-
-## Why This Project?
-
-Santa Fe faces a housing crisis. Home prices have risen faster than incomes, short-term rentals have reduced available housing stock, and many residents struggle to find affordable places to live. Understanding *where* these problems occur—and how they intersect with transit access, zoning, flood risk, and neighborhood demographics—requires spatial analysis that's typically locked behind expensive GIS software and specialized expertise.
-
-This tool aims to make that analysis accessible to anyone: residents, journalists, advocates, city planners, and policymakers. No GIS experience required—just ask your question.
-
-### Questions you can ask
-
-- "Which neighborhoods have the most short-term rentals?"
-- "Show parcels zoned residential that are currently vacant"
-- "Census tracts with median income below $40,000"
-- "Affordable housing units within 800 meters of transit stops"
-- "How has assessed value changed near the Railyard since 2018?"
-- "Parcels within 500 meters of an arroyo and inside flood zones"
+Current status: late prototype / review build. The API, web app, Docker build, data pipeline, and tests are working locally. A public production deployment is still pending.
 
 ---
 
-## Features
+## What Works Now
 
-- **Natural language queries** — Ask questions in plain English or Spanish; an LLM translates them to spatial queries
-- **Interactive map** — Results displayed on a MapLibre GL map centered on Santa Fe
-- **Transparent queries** — See exactly what spatial operation was executed, not just the results
-- **Equity-aware explanations** — AI-generated summaries that consider demographic and equity context
-- **Multiple data layers** — Parcels, census tracts, zoning, hydrology, transit, and more
-- **Export results** — Download findings as GeoJSON or CSV for further analysis
-- **Bilingual — English & Spanish** — Interface and query understanding in both languages, with New Mexican vocabulary honored
+- Natural-language query parsing in English and Spanish
+- Server-owned multi-turn conversations via `conversationId`
+- Constrained `StructuredQuery` validation with Zod and registry grounding
+- Spatial operations for distance, intersects, contains, within, and nearest
+- DuckDB spatial execution over local Parquet data
+- Dual geometry columns: `geom_4326` for display/topology and `geom_utm13` for metric operations
+- React 19 frontend with MapLibre, Zustand, localized UI, result tables, choropleth support, and GeoJSON/CSV export
+- LLM provider abstraction for local Ollama and production Together.ai
+- Production guards for concrete CORS origin and API key when `NODE_ENV=production`
+- Request IDs, structured logging, rate limits, graceful shutdown, and Docker build support
 
----
+## Data Snapshot
 
-## Accessibility & Language
+The checked-in manifest currently describes 14 layers and 109,417 features under `api/data`.
 
-Parcela is bilingual — English and Spanish — as a first-order commitment, not an afterthought. Santa Fe has deep Spanish-speaking roots, and the questions this tool asks — about housing, *acequias*, *barrios*, and equity — should be askable in the language communities already use to think about them.
+| Layer | Features | Geometry |
+|-------|----------|----------|
+| `parcels` | 63,439 | Polygon |
+| `building_footprints` | 42,630 | Polygon |
+| `zoning_districts` | 851 | Polygon |
+| `short_term_rentals` | 897 | Point |
+| `bikeways` | 536 | LineString |
+| `transit_access` | 447 | Point |
+| `flood_zones` | 227 | Polygon |
+| `hydrology` | 109 | LineString |
+| `neighborhoods` | 106 | Polygon |
+| `parks` | 77 | Polygon |
+| `census_tracts` | 57 | Polygon |
+| `affordable_housing_units` | 35 | Polygon / Point |
+| `historic_districts` | 5 | Polygon |
+| `city_limits` | 1 | Polygon |
 
-- The interface detects your browser language and offers a toggle to switch at any time
-- Queries in Spanish are understood directly — they are not translated to English first
-- Explanations are generated in the same language you asked in
-- We use New Mexican Spanish vocabulary where it applies: *acequia*, *arroyo*, *barrio*, *parcela*, *sector censal*
-- Translations are reviewed by native Spanish speakers from Santa Fe before publishing
+See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) and [docs/DATA_CATALOG.md](docs/DATA_CATALOG.md) for provenance and data notes.
 
-If a translation doesn't sound right for Santa Fe, please open an issue.
+## Architecture
 
----
-
-## Demo
-
-> *Coming soon* — The project is under active development. Check back for a live demo link.
-
----
-
-## How It Works
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  You type: "Residential parcels near the Santa Fe River"   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  1. LLM parses your question into a structured query        │
-│  2. Query validated against available layers/fields         │
-│  3. Spatial SQL executed against DuckDB                     │
-│  4. Results returned as GeoJSON + rendered on map           │
-│  5. LLM generates plain-English explanation                 │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│  "Found 34 residential parcels within 200m of Santa Fe     │
-│   River segments, concentrated in the downtown and Agua    │
-│   Fria areas. These overlap census tracts with median      │
-│   incomes below the city average."                         │
-└─────────────────────────────────────────────────────────────┘
+```text
+User message
+  -> /api/chat
+  -> intent grounding
+  -> LLM parse to StructuredQuery
+  -> Zod + layer registry validation
+  -> query normalization and caps
+  -> DuckDB spatial SQL
+  -> GeoJSON result + explanation
+  -> React/MapLibre rendering
 ```
 
-Every query shows the structured operation that was executed, so you can verify what the system did and reproduce it.
-
----
+Every response includes the structured query and result metadata so users can see what the system actually ran.
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | React 19, TypeScript, Vite, MapLibre GL JS, Zustand |
-| Backend | Hono (TypeScript), Zod validation |
-| Database | DuckDB with spatial extension |
-| LLM | Ollama (local) or Together.ai/Groq (production) |
-| Deployment | Railway/Fly.io (API), Vercel/Cloudflare Pages (frontend) |
-
-### Why these choices?
-
-- **DuckDB** — Single-file database with spatial support. No server to manage, ships with the app.
-- **Hono** — Lightweight, edge-ready API framework. Fast and TypeScript-native.
-- **MapLibre GL** — Open-source map rendering. No vendor lock-in.
-- **Ollama** — Run LLMs locally during development. No API costs, no data leaves your machine.
-
----
-
-## Data Sources
-
-This project uses publicly available data about Santa Fe:
-
-| Layer | Source | Features |
-|-------|--------|----------|
-| Parcels, Building Footprints | County Assessor / City GIS | 106K |
-| Census Tracts | US Census ACS 5-Year | 57 |
-| Zoning, Neighborhoods, City Limits, Historic Districts | City of Santa Fe | 963 |
-| Hydrology, Flood Zones | City GIS / FEMA NFHL | 336 |
-| Transit Access | City GTFS | 447 |
-| Short-Term Rentals | City Permits | 897 |
-| Parks, Bikeways | City GIS | 613 |
-| Affordable Housing | HUD LIHTC | 35 |
-
-See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for complete documentation of data provenance, update cadence, and licensing.
-
----
-
-## Docker
-
-### Build and run
-
-```bash
-# Build the image
-docker build -t parcela .
-
-# Run with local parquet data mounted
-docker run --rm -p 3000:3000 \
-  -v $(pwd)/api/data:/app/api/data \
-  parcela
-```
-
-The API is now available at `http://localhost:3000`.
-
-### Environment variables
-
-Pass env vars with `-e` flags:
-
-```bash
-docker run --rm -p 3000:3000 \
-  -v $(pwd)/api/data:/app/api/data \
-  -e TOGETHER_API_KEY=your_key_here \
-  -e CORS_ORIGIN=https://your-frontend.com \
-  parcela
-```
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | Port the API listens on |
-| `CORS_ORIGIN` | `*` | Allowed CORS origin (use specific domain in production) |
-| `TOGETHER_API_KEY` | — | Use Together.ai for LLM; falls back to Ollama if unset |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama endpoint |
-| `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model name |
-
-### Quick health check
-
-```bash
-curl http://localhost:3000/api/health
-# → {"status":"ok"}
-```
-
----
+| Area | Technology |
+|------|------------|
+| Web | React 19, TypeScript, Vite, MapLibre GL JS, Zustand, i18next |
+| API | Hono, TypeScript, Zod |
+| Spatial engine | DuckDB with spatial extension |
+| LLM | Ollama for local development, Together.ai for hosted use |
+| Tests | Vitest |
+| Deployment target | Dockerized API, static web build |
 
 ## Local Development
 
-### Prerequisites
+Prerequisites:
 
 - Node.js 20+
-- [Ollama](https://ollama.ai/) installed and running
+- Ollama, if you want local natural-language parsing without a Together.ai key
 - Git
 
-### Setup
+Install dependencies:
 
 ```bash
-# Clone the repository
-git clone https://github.com/rgdonohue/parcela.git
-cd parcela
+npm --prefix api install
+npm --prefix web install
+```
 
-# Install dependencies
-cd api && npm install && cd ..
-cd web && npm install && cd ..
+Optional local LLM:
 
-# Pull an LLM model (choose one)
+```bash
 ollama pull qwen2.5:7b
-# or
-ollama pull llama3.1:8b
-
-# Start the API (in one terminal)
-cd api && npm run dev
-
-# Start the frontend (in another terminal)
-cd web && npm run dev
 ```
 
-The frontend runs at `http://localhost:5173` and the API at `http://localhost:3000`.
-
-### Environment Variables
-
-See `api/.env.example` and `web/.env.example` for all available options. Key variables:
+Start the API and web app in separate terminals:
 
 ```bash
-# Development (default — uses local Ollama)
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:7b
-
-# Production (set TOGETHER_API_KEY to switch from Ollama to Together.ai)
-TOGETHER_API_KEY=your_api_key_here
+npm --prefix api run dev
+npm --prefix web run dev
 ```
 
----
+Defaults:
 
-## Project Structure
+- API: `http://localhost:3000`
+- Web: `http://localhost:5173`
+- Web API override: set `VITE_API_BASE=http://localhost:<api-port>` in `web/.env`
 
+The API will try the next available port when `PORT` is unset and `3000` is already in use.
+
+## Environment
+
+API variables are documented in [api/.env.example](api/.env.example).
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `PORT` | `3000` | API listen port; auto-increments in dev when unset |
+| `CORS_ORIGIN` | `*` in dev | Required concrete origin in production |
+| `API_KEY` | unset in dev | Required in production; accepted via `X-API-Key` or bearer token |
+| `TOGETHER_API_KEY` | unset | Enables Together.ai instead of Ollama |
+| `TOGETHER_MODEL` | `Qwen/Qwen2.5-7B-Instruct` | Hosted model |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama endpoint |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | Local model |
+| `TRUSTED_PROXY_COUNT` | `0` | Controls forwarded-IP trust for rate limiting/logging |
+
+## Validation
+
+Current local verification:
+
+```bash
+npm --prefix api run typecheck
+npm --prefix api test -- --run
+npm --prefix web run typecheck
+npm --prefix web test -- --run
+npm --prefix shared run typecheck
+npm run lint
+npm --prefix web run build
 ```
-parcela/
-├── api/                    # Backend (Hono + DuckDB)
-│   ├── src/
-│   │   ├── routes/         # API endpoints (chat, query, layers, templates)
-│   │   ├── lib/
-│   │   │   ├── orchestrator/   # NL → query → results pipeline
-│   │   │   ├── llm/            # LLM provider abstraction
-│   │   │   ├── middleware/     # Rate limiting
-│   │   │   ├── db/             # DuckDB setup and queries
-│   │   │   └── utils/          # Explanation, logging, query executor
-│   │   └── types/          # TypeScript types
-│   ├── tests/              # Vitest test suites (88 API + 37 web tests)
-│   └── data/               # GeoParquet data files + manifest
-│
-├── web/                    # Frontend (React + MapLibre)
-│   ├── src/
-│   │   ├── components/     # ChatPanel, MapView, ResultsPanel
-│   │   ├── store/          # Zustand state management
-│   │   └── lib/            # API client, choropleth
-│   └── public/
-│
-├── shared/                 # Shared types between api/web
-├── scripts/                # Data fetch and preparation scripts
-└── docs/                   # Architecture, planning, assessments
-```
 
----
+Latest run: 95 API tests, 37 web tests, shared typecheck, lint, and web production build passed.
 
-## API Endpoints
+## API
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/chat` | POST | Natural language query → results + explanation |
-| `/api/query` | POST | Direct structured query (bypass LLM) |
-| `/api/layers` | GET | Available data layers and their schemas |
-| `/api/templates` | GET | Pre-built equity analysis queries |
 | `/api/health` | GET | Service health check |
+| `/api/layers` | GET | Loaded layers and schemas |
+| `/api/query` | POST | Direct structured query |
+| `/api/chat` | POST | Natural-language query to results |
+| `/api/templates` | GET | Runnable equity-analysis query templates |
+| `/api/templates/:id` | GET | Template details |
+| `/api/templates/category/:category` | GET | Templates by category |
 
-### Example: Natural Language Query
+Example chat request:
 
 ```bash
 curl -X POST http://localhost:3000/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Show residential parcels near the river"}'
+  -d '{"message":"Show residential parcels near transit","lang":"en"}'
 ```
 
-Response:
+The response includes `conversationId`, `conversationTurn`, `query`, `result`, `summary`, `explanation`, optional `equityNarrative`, `confidence`, `grounding`, and `metadata`.
+
+For direct queries, use the wrapped request shape:
+
 ```json
 {
   "query": {
     "selectLayer": "parcels",
-    "attributeFilters": [{"field": "zoning", "op": "in", "value": ["R-1", "R-2"]}],
-    "spatialFilters": [{
-      "op": "within_distance",
-      "targetLayer": "hydrology",
-      "distance": 200
-    }]
-  },
-  "result": {
-    "type": "FeatureCollection",
-    "features": [...],
-    "metadata": {"count": 34, "executionTimeMs": 127}
-  },
-  "explanation": "Found 34 residential parcels within 200m of river segments...",
-  "confidence": 0.9
+    "spatialFilters": [
+      {
+        "op": "within_distance",
+        "targetLayer": "transit_access",
+        "distance": 500
+      }
+    ],
+    "limit": 100
+  }
 }
 ```
 
----
+## Docker
 
-## Contributing
+Build and run the API image:
 
-This project is in active development. Contributions are welcome!
+```bash
+docker build -t parcela .
+docker run --rm -p 3000:3000 \
+  -v "$(pwd)/api/data:/app/api/data" \
+  parcela
+```
 
-### Areas where help is needed
+Production deployments must provide a concrete CORS origin and API key:
 
-- **Data acquisition** — Sourcing and cleaning Santa Fe spatial datasets
-- **Query patterns** — Expanding the types of spatial queries supported
-- **UI/UX** — Improving the map interface and results display
-- **Testing** — Unit and integration tests for the query builder
-- **Documentation** — Improving this README and adding tutorials
+```bash
+docker run --rm -p 3000:3000 \
+  -v "$(pwd)/api/data:/app/api/data" \
+  -e NODE_ENV=production \
+  -e CORS_ORIGIN=https://your-frontend.example \
+  -e API_KEY=replace-with-secret \
+  -e TOGETHER_API_KEY=your-key \
+  parcela
+```
 
-### Development workflow
+## Repository Layout
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Make your changes
-4. Run tests (`npm test` in both `api/` and `web/`)
-5. Submit a pull request
-
-Please ensure TypeScript compiles without errors (`npm run typecheck`) and linting passes (`npm run lint`).
-
----
-
-## Roadmap
-
-### Done
-- [x] NL query engine with constrained StructuredQuery schema
-- [x] Spatial operations (distance, intersects, contains, within, nearest)
-- [x] Multi-turn conversation refinement
-- [x] LLM-driven equity-aware explanations
-- [x] GeoJSON/CSV export with query metadata
-- [x] Accessibility (ARIA labels, keyboard nav, screen reader)
-- [x] Rate limiting, CORS, graceful shutdown
-- [x] Docker + CI/CD pipeline
-- [x] Structured JSON logging
-- [x] 14 spatial layers loaded (109K+ features)
-
-### Next
-- [ ] Production deployment (Railway/Fly.io + Vercel)
-- [ ] User testing with housing advocates and planners
-- [ ] School zones and wildfire risk data layers
-
-### Future
-- [ ] PDF report export for council/community presentations
-- [ ] Shareable query URLs
-- [ ] User-uploaded data layers
-- [ ] Voice input for accessibility
-
----
+```text
+parcela/
+├── api/          # Hono API, DuckDB integration, orchestrator, tests, data manifest
+├── web/          # React/Vite frontend, MapLibre views, frontend tests
+├── shared/       # Shared API/query/geo types and field labels
+├── scripts/      # Data acquisition and preparation scripts
+├── docs/         # Architecture, data, status, and historical planning docs
+└── .github/      # CI workflow
+```
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) — Technical design and system overview
-- [Build Plan](docs/BUILD_PLAN.md) — Forward-looking action plan
-- [Data Sources](docs/DATA_SOURCES.md) — Dataset provenance and licensing
-- [Project Assessment](docs/ASSESSMENT_2026_04_11.md) — Current state and next steps
-- [Code Evaluation](docs/project-evaluation.md) — Architecture review and recommendations
+- [docs/README.md](docs/README.md) — Documentation map and freshness notes
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Technical design
+- [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) — Current review snapshot
+- [docs/DATA_CATALOG.md](docs/DATA_CATALOG.md) — Current loaded layer catalog
+- [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) — Data provenance and licensing
+- [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) — Historical build plan and remaining product work
 
----
+## Known Gaps
 
-## Acknowledgments
-
-- Santa Fe County and City of Santa Fe for publishing open GIS data
-- US Census Bureau for demographic data
-- The open-source communities behind DuckDB, MapLibre, Hono, and Ollama
-
----
+- No public production deployment is documented yet.
+- School zones, wildfire risk, vacancy, and eviction layers are not loaded.
+- API key validation is intentionally simple and should be replaced with rotated key management before public launch.
+- Data refresh cadence is not automated.
+- Spanish README and some historical planning docs lag the English/current-state docs.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-## Contact
-
-Questions, ideas, or feedback? Open an issue or reach out:
-
-- GitHub Issues: [github.com/rgdonohue/parcela/issues](https://github.com/rgdonohue/parcela/issues)
-
----
-
-*Built with the goal of making spatial data accessible for housing equity research in Santa Fe, NM.*
+MIT License. See [LICENSE](LICENSE).

@@ -12,7 +12,7 @@ A tool for investigating housing affordability, land use patterns, and equity in
 
 3. **Portable infrastructure** — DuckDB (single file) over PostGIS. Deployable to Railway/Fly without database provisioning.
 
-4. **Swappable LLM** — Ollama locally, Together.ai/Groq in production. Same interface, different backend.
+4. **Swappable LLM** — Ollama locally, Together.ai for hosted inference. Same interface, different backend.
 
 5. **Auditable results** — Every query shows the structured operation that was executed, not just results. Users can verify what the system did.
 
@@ -85,7 +85,7 @@ This tool serves two purposes:
 
 ### Frontend (`/web`)
 
-**Stack:** React 18 + TypeScript + Vite + MapLibre GL JS + TailwindCSS
+**Stack:** React 19 + TypeScript + Vite + MapLibre GL JS + Zustand + i18next
 
 **Key modules:**
 
@@ -93,18 +93,17 @@ This tool serves two purposes:
 |--------|----------------|
 | `ChatPanel` | Message input, history display, loading states |
 | `MapView` | MapLibre instance, layer management, feature highlighting |
-| `ResultsPanel` | Tabular results, feature details on click |
-| `QueryExplainer` | Shows the structured query that was executed |
+| `ResultsPanel` | Explanations, tabular results, feature details, exports, metadata |
 
-**State management:** Zustand or React Context — keep it simple. Core state:
+**State management:** Zustand. Core state:
 
 ```typescript
 interface AppState {
   messages: ChatMessage[];
   currentQuery: StructuredQuery | null;
   queryResult: QueryResult | null;
+  conversationId: string | null;
   selectedFeature: GeoJSON.Feature | null;
-  visibleLayers: string[];
 }
 ```
 
@@ -362,15 +361,13 @@ function createLLMClient(config: LLMConfig): LLMClient {
       return new OllamaClient(config.baseUrl, config.model);
     case 'together':
       return new TogetherClient(config.apiKey, config.model);
-    case 'groq':
-      return new GroqClient(config.apiKey, config.model);
   }
 }
 ```
 
 **Model selection:**
 - Local dev: Ollama with `qwen2.5:7b` or `llama3.1:8b`
-- Production: Together.ai or Groq with same models (or larger)
+- Production: Together.ai with `Qwen/Qwen2.5-7B-Instruct` by default
 
 ---
 
@@ -629,8 +626,8 @@ parcela/
          │
          ▼
 ┌─────────────────┐     ┌─────────────────┐
-│  Railway /      │     │  Together.ai /  │
-│  Fly.io         │────▶│  Groq API       │
+│  Railway /      │     │  Together.ai    │
+│  Fly.io         │────▶│  API            │
 │  (API + DuckDB) │     │                 │
 └─────────────────┘     └─────────────────┘
 ```
@@ -639,7 +636,7 @@ parcela/
 
 1. **DuckDB ships with the container** — the database file is baked into the Docker image or loaded from object storage on startup. No managed database needed.
 
-2. **LLM is external in production** — Ollama requires GPU; Together.ai/Groq are cheaper and faster for inference at this scale.
+2. **LLM is external in production** — Ollama requires GPU; Together.ai is the implemented hosted provider.
 
 3. **Frontend is static** — deploy to any CDN.
 
@@ -664,23 +661,23 @@ parcela/
 
 2. **LLM output validation** — Zod schema validates every LLM response before execution. Malformed output returns an error, not a crash.
 
-3. **Rate limiting** — API endpoints rate-limited per IP (use Hono middleware or Cloudflare). Add per-endpoint budgets for `/api/chat` to cap LLM costs.
+3. **Rate limiting** — `/api/chat` and `/api/query` are rate-limited per derived client IP. `TRUSTED_PROXY_COUNT` controls whether forwarded headers are trusted.
 
-4. **Auth / CORS** — Even with public data, protect `/api/chat` and `/api/query` with an API key or simple token in production. Restrict CORS origins to the deployed frontend.
+4. **Auth / CORS** — Production startup requires `API_KEY` and a concrete `CORS_ORIGIN`. The current API-key check is intentionally simple and should be replaced with rotated key validation before public launch.
 
 5. **No sensitive data** — Santa Fe parcels/census data is public. If adding private layers later, add auth and per-layer ACL checks.
 
 6. **Abuse controls** — Cap max features/rows returned and max distance/limit parameters; log and reject oversized requests before LLM invocation.
 
-7. **Auditing** — Persist hashed prompt/output pairs and `queryHash` for offline inspection; redact PII if user data is added later.
+7. **Auditing** — Requests include request IDs, query hashes, LLM provider/model, and latency in structured logs. Persisting selected logs for offline inspection remains deployment work.
 
 ---
 
 ## Observability & Operations
 
-- **Structured logging** — Log request id, queryHash, LLM provider/model, latency (LLM + DuckDB), and validation errors. Tie logs to feature counts to spot slow/large queries.
-- **Health checks** — `/api/health` should verify DuckDB connectivity and LLM provider reachability (or report degraded).
-- **Fallbacks** — On LLM errors/timeouts, retry with a cheaper/backup model; serve cached parsed queries when available.
+- **Structured logging** — Request id, queryHash, LLM provider/model, latency, validation failures, and feature counts are emitted to stdout.
+- **Health checks** — `/api/health` currently reports process health; deeper DuckDB/LLM readiness checks remain deployment work.
+- **Fallbacks** — Explanation generation falls back to deterministic text on LLM errors/timeouts; parsed queries and query results are cached in memory.
 - **Metrics** — Track parse success rate, validation reject rate, average/95p LLM latency, and DuckDB execution time. Use these to set alert thresholds.
 
 ---
@@ -712,11 +709,11 @@ interface ExportOptions {
 
 ## Near-term Enhancements (single-dev friendly)
 
-- Extend the query builder and LLM prompt to support multiple `spatialFilters` with `and`/`or` logic as defined above; add unit tests covering combined predicates.
-- Add a CRS validation step in the data ingest script with a hard failure on unknown SRID; emit per-layer summary (extent, feature count).
-- Implement basic API key auth + origin-restricted CORS + rate limiting middleware.
-- Add structured logging (request id + queryHash) and a minimal metrics endpoint (or stdout counters) to watch LLM/DuckDB latency.
-- Cache parsed queries (NL → StructuredQuery) in-memory with an LRU to hit the warm query target.
+- Replace placeholder API-key comparison with rotated key validation or real user auth.
+- Add scheduled data refreshes with freshness metadata in `api/data/manifest.json`.
+- Add production readiness checks that cover DuckDB layer loading and LLM provider reachability.
+- Validate equity templates with real target users and capture explanation-quality feedback.
+- Add school-zone or wildfire-risk layers once source data and processing approach are settled.
 
 ---
 
